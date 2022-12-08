@@ -89,7 +89,7 @@ token_t *tokenize(char *p) {
       continue;
     }
 
-    if (*p == '+' || *p == '-') {
+    if (*p == '+' || *p == '-' || *p == '(' || *p == ')') {
       cur = new_token(TK_RESERVED, cur, p++);
       continue;
     }
@@ -107,6 +107,94 @@ token_t *tokenize(char *p) {
   return head.next;
 }
 
+typedef enum {
+  NODE_MINUS,
+  NODE_ADD,
+  NODE_SUB,
+  NODE_MUL,
+  NODE_DIV,
+  NODE_NUM,
+} node_kind_t;
+
+typedef struct node_t {
+  node_kind_t kind;
+  struct node_t *lhs;
+  struct node_t *rhs;
+  int val;
+} node_t;
+
+node_t *new_node() { return (node_t *)calloc(1, sizeof(node_t)); }
+
+node_t *parse_int() {
+  node_t *node = new_node();
+  node->kind = NODE_NUM;
+  node->val = expect_int();
+  return node;
+}
+
+node_t *parse() {
+  node_t *node = new_node();
+
+  // parse leading operator
+  if (consume('-')) {
+    node_t *follower = parse();
+    node->kind = NODE_MINUS;
+    node->rhs = follower;
+  } else if (consume('(')) {
+    node = parse();
+    expect(')');
+  } else {
+    node = parse_int();
+  }
+
+  // parse following opertors
+  if (consume('+')) {
+    node_t *follower = parse();
+    node_t *leader = node;
+    node = new_node();
+    node->kind = NODE_ADD;
+    node->lhs = leader;
+    node->rhs = follower;
+  } else if (consume('-')) {
+    node_t *follower = parse();
+    node_t *leader = node;
+    node = new_node();
+    node->kind = NODE_SUB;
+    node->lhs = leader;
+    node->rhs = follower;
+  }
+  return node;
+}
+
+void print_node(node_t *node) {
+  switch (node->kind) {
+    case NODE_MINUS:
+      fprintf(stderr, "(- ");
+      print_node(node->rhs);
+      fprintf(stderr, ")");
+      break;
+    case NODE_ADD:
+      fprintf(stderr, "(+ ");
+      print_node(node->lhs);
+      fprintf(stderr, " ");
+      print_node(node->rhs);
+      fprintf(stderr, ")");
+      break;
+    case NODE_SUB:
+      break;
+    case NODE_MUL:
+      break;
+    case NODE_DIV:
+      break;
+    case NODE_NUM:
+      fprintf(stderr, "%d", node->val);
+      break;
+
+    default:
+      break;
+  }
+}
+
 int main(int argc, char **argv) {
   if (argc != 2) {
     error("argc = %d\n", argc);
@@ -114,6 +202,10 @@ int main(int argc, char **argv) {
   }
   token = tokenize(argv[1]);
   assert(!at_eof());
+  node_t *node = parse();
+  print_node(node);
+  fprintf(stderr, "\n");
+
   print_header();
   print_main_header();
   printf("\tli a0, %d\n", expect_int());
