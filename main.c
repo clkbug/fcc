@@ -255,6 +255,48 @@ void print_node(node_t *node) {
   }
 }
 
+void gen(node_t *node) {
+  // print_node(node);
+  // fprintf(stderr, "\n");
+  if (node->kind == NODE_NUM) {
+    // push
+    printf("\taddi sp, sp, -4\n");
+    printf("\tli t0, %d\n", node->val);
+    printf("\tsw t0, 0(sp)\n");
+    return;
+  }
+  if (node->lhs != NULL) {
+    gen(node->lhs);
+  }
+  if (node->rhs != NULL) {
+    gen(node->rhs);
+  }
+
+  // pop x2
+  printf("\tlw t0, 0(sp)\n");
+  printf("\tlw t1, +4(sp)\n");
+  printf("\taddi sp, sp, +8\n");
+
+  switch (node->kind) {
+    case NODE_ADD:
+      printf("\tadd t0, t1, t0\n");
+      break;
+    case NODE_SUB:
+      printf("\tsub t0, t1, t0\n");
+      break;
+    case NODE_MUL:
+      printf("\tmul t0, t1, t0\n");
+      break;
+    case NODE_DIV:
+      printf("\tdiv t0, t1, t0\n");
+      break;
+    default:
+      assert("gen invalid node");
+  }
+  printf("\taddi sp, sp, -4\n");
+  printf("\tsw t0, 0(sp)\n");
+}
+
 int main(int argc, char **argv) {
   if (argc != 2) {
     error("argc = %d\n", argc);
@@ -263,22 +305,20 @@ int main(int argc, char **argv) {
   token = tokenize(argv[1]);
   assert(!at_eof());
   node_t *node = parse(0);
-  print_node(node);
-  fprintf(stderr, "\n");
-  exit(0);
+
+  // print_node(node);
+  // fprintf(stderr, "\n");
+
   print_header();
   print_main_header();
-  printf("\tli a0, %d\n", expect_int());
-  while (!at_eof()) {
-    if (consume('+')) {
-      printf("\taddi a0, a0, %d\n", expect_int());
-      continue;
-    }
 
-    expect('-');
-    printf("\taddi a0, a0, -%d\n", expect_int());
-  }
+  gen(node);
 
+  // pop
+  printf("\tlw a0, 0(sp)\n");
+  printf("\taddi sp, sp, 4\n");
+
+  // ret
   printf("\tret\n");
 
   return 0;

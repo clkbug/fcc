@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# set -x
+
 assert() {
   expected="$1"
   input="$2"
@@ -21,9 +23,12 @@ assert() {
 
 assert 0 0
 assert 100 100
+assert 1 "0 + 1"
 assert 5 "2 + 3"
 assert 1 "3 - 2"
 assert 10 "1 +2+3 - 4   + 5 + 6 - 7 + 8 -9 + 15 - 10"
-# assert 42 42
+assert 7 "1 + 2*3"
+assert 62 "4 * 5 + 6 * 7"
+assert 53 "(1 + 2) * 3 + 4 * (5 + 6)"
 
 echo OK
