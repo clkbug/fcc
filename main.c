@@ -52,6 +52,13 @@ bool consume(char op) {
   return true;
 }
 
+bool peek(char op) {
+  if (token->kind != TK_RESERVED || token->str[0] != op) {
+    return false;
+  }
+  return true;
+}
+
 void expect(char op) {
   if (token->kind != TK_RESERVED || token->str[0] != op) {
     error("not '%c', got '%s'\n", op, token->str);
@@ -89,7 +96,8 @@ token_t *tokenize(char *p) {
       continue;
     }
 
-    if (*p == '+' || *p == '-' || *p == '(' || *p == ')') {
+    if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
+        *p == ')') {
       cur = new_token(TK_RESERVED, cur, p++);
       continue;
     }
@@ -132,38 +140,91 @@ node_t *parse_int() {
   return node;
 }
 
-node_t *parse() {
+const int NEG_RIGHT_BIND_POW = 51;
+const int PLUS_LEFT_BINDING_POWER = 50;
+const int PLUS_RIGHT_BINDING_POWER = 51;
+const int MINUS_LEFT_BINDING_POWER = 50;
+const int MINUS_RIGHT_BINDING_POWER = 51;
+const int MUL_LEFT_BINDING_POWER = 80;
+const int MUL_RIGHT_BINDING_POWER = 81;
+const int DIV_LEFT_BINDING_POWER = 80;
+const int DIV_RIGHT_BINDING_POWER = 81;
+
+node_t *parse(int min_bind_pow) {
   node_t *node = new_node();
 
   // parse leading operator
   if (consume('-')) {
-    node_t *follower = parse();
+    node_t *follower = parse(NEG_RIGHT_BIND_POW);
     node->kind = NODE_MINUS;
     node->rhs = follower;
   } else if (consume('(')) {
-    node = parse();
+    node = parse(0);
     expect(')');
   } else {
     node = parse_int();
   }
 
   // parse following opertors
-  if (consume('+')) {
-    node_t *follower = parse();
-    node_t *leader = node;
-    node = new_node();
-    node->kind = NODE_ADD;
-    node->lhs = leader;
-    node->rhs = follower;
-  } else if (consume('-')) {
-    node_t *follower = parse();
-    node_t *leader = node;
-    node = new_node();
-    node->kind = NODE_SUB;
-    node->lhs = leader;
-    node->rhs = follower;
+  for (;;) {
+    if (peek('+')) {
+      if (PLUS_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      consume('+');
+      node_t *follower = parse(PLUS_RIGHT_BINDING_POWER);
+      node_t *leader = node;
+      node = new_node();
+      node->kind = NODE_ADD;
+      node->lhs = leader;
+      node->rhs = follower;
+    } else if (peek('-')) {
+      if (MINUS_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      consume('-');
+      node_t *follower = parse(MINUS_RIGHT_BINDING_POWER);
+      node_t *leader = node;
+      node = new_node();
+      node->kind = NODE_SUB;
+      node->lhs = leader;
+      node->rhs = follower;
+    } else if (peek('*')) {
+      if (MUL_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      consume('*');
+      node_t *follower = parse(MUL_RIGHT_BINDING_POWER);
+      node_t *leader = node;
+      node = new_node();
+      node->kind = NODE_MUL;
+      node->lhs = leader;
+      node->rhs = follower;
+    } else if (peek('/')) {
+      if (DIV_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      consume('/');
+      node_t *follower = parse(DIV_RIGHT_BINDING_POWER);
+      node_t *leader = node;
+      node = new_node();
+      node->kind = NODE_DIV;
+      node->lhs = leader;
+      node->rhs = follower;
+    } else {
+      return node;
+    }
   }
-  return node;
+}
+
+void print_node(node_t *node);
+
+void print_node_binop(node_t *node, char *op) {
+  fprintf(stderr, "(%s ", op);
+  print_node(node->lhs);
+  fprintf(stderr, " ");
+  print_node(node->rhs);
+  fprintf(stderr, ")");
 }
 
 void print_node(node_t *node) {
@@ -174,17 +235,16 @@ void print_node(node_t *node) {
       fprintf(stderr, ")");
       break;
     case NODE_ADD:
-      fprintf(stderr, "(+ ");
-      print_node(node->lhs);
-      fprintf(stderr, " ");
-      print_node(node->rhs);
-      fprintf(stderr, ")");
+      print_node_binop(node, "+");
       break;
     case NODE_SUB:
+      print_node_binop(node, "-");
       break;
     case NODE_MUL:
+      print_node_binop(node, "*");
       break;
     case NODE_DIV:
+      print_node_binop(node, "/");
       break;
     case NODE_NUM:
       fprintf(stderr, "%d", node->val);
@@ -202,10 +262,10 @@ int main(int argc, char **argv) {
   }
   token = tokenize(argv[1]);
   assert(!at_eof());
-  node_t *node = parse();
+  node_t *node = parse(0);
   print_node(node);
   fprintf(stderr, "\n");
-
+  exit(0);
   print_header();
   print_main_header();
   printf("\tli a0, %d\n", expect_int());
