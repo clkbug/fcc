@@ -164,6 +164,19 @@ const int MUL_RIGHT_BINDING_POWER = 81;
 const int DIV_LEFT_BINDING_POWER = 80;
 const int DIV_RIGHT_BINDING_POWER = 81;
 
+node_t *parse(int min_bind_pow);
+
+node_t *parse_follower(node_t *leader, char *op, int right_binding_power,
+                       node_kind_t kind) {
+  consume(op);
+  node_t *follower = parse(right_binding_power);
+  node_t *node = new_node();
+  node->kind = kind;
+  node->lhs = leader;
+  node->rhs = follower;
+  return node;
+}
+
 node_t *parse(int min_bind_pow) {
   node_t *node = new_node();
 
@@ -185,46 +198,22 @@ node_t *parse(int min_bind_pow) {
       if (PLUS_LEFT_BINDING_POWER <= min_bind_pow) {
         return node;
       }
-      consume("+");
-      node_t *follower = parse(PLUS_RIGHT_BINDING_POWER);
-      node_t *leader = node;
-      node = new_node();
-      node->kind = NODE_ADD;
-      node->lhs = leader;
-      node->rhs = follower;
+      node = parse_follower(node, "+", PLUS_RIGHT_BINDING_POWER, NODE_ADD);
     } else if (peek("-")) {
       if (MINUS_LEFT_BINDING_POWER <= min_bind_pow) {
         return node;
       }
-      consume("-");
-      node_t *follower = parse(MINUS_RIGHT_BINDING_POWER);
-      node_t *leader = node;
-      node = new_node();
-      node->kind = NODE_SUB;
-      node->lhs = leader;
-      node->rhs = follower;
+      node = parse_follower(node, "-", MINUS_RIGHT_BINDING_POWER, NODE_SUB);
     } else if (peek("*")) {
       if (MUL_LEFT_BINDING_POWER <= min_bind_pow) {
         return node;
       }
-      consume("*");
-      node_t *follower = parse(MUL_RIGHT_BINDING_POWER);
-      node_t *leader = node;
-      node = new_node();
-      node->kind = NODE_MUL;
-      node->lhs = leader;
-      node->rhs = follower;
+      node = parse_follower(node, "*", MUL_RIGHT_BINDING_POWER, NODE_MUL);
     } else if (peek("/")) {
       if (DIV_LEFT_BINDING_POWER <= min_bind_pow) {
         return node;
       }
-      consume("/");
-      node_t *follower = parse(DIV_RIGHT_BINDING_POWER);
-      node_t *leader = node;
-      node = new_node();
-      node->kind = NODE_DIV;
-      node->lhs = leader;
-      node->rhs = follower;
+      node = parse_follower(node, "/", DIV_RIGHT_BINDING_POWER, NODE_DIV);
     } else {
       return node;
     }
