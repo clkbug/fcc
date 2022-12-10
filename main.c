@@ -135,6 +135,12 @@ typedef enum {
   NODE_SUB,
   NODE_MUL,
   NODE_DIV,
+  NODE_EQ,
+  NODE_NEQ,
+  NODE_LT,
+  NODE_LE,
+  NODE_GT,
+  NODE_GE,
   NODE_NUM,
 } node_kind_t;
 
@@ -154,15 +160,22 @@ node_t *parse_int() {
   return node;
 }
 
-const int NEG_RIGHT_BIND_POW = 51;
-const int PLUS_LEFT_BINDING_POWER = 50;
-const int PLUS_RIGHT_BINDING_POWER = 51;
-const int MINUS_LEFT_BINDING_POWER = 50;
-const int MINUS_RIGHT_BINDING_POWER = 51;
+// binding power
+// high is prior
+const int NEG_RIGHT_BIND_POW = 91;
 const int MUL_LEFT_BINDING_POWER = 80;
 const int MUL_RIGHT_BINDING_POWER = 81;
 const int DIV_LEFT_BINDING_POWER = 80;
 const int DIV_RIGHT_BINDING_POWER = 81;
+const int PLUS_LEFT_BINDING_POWER = 50;
+const int PLUS_RIGHT_BINDING_POWER = 51;
+const int MINUS_LEFT_BINDING_POWER = 50;
+const int MINUS_RIGHT_BINDING_POWER = 51;
+
+const int COMPARE_LEFT_BINDING_POWER = 30;
+const int COMPARE_RIGHT_BINDING_POWER = 31;
+const int EQ_LEFT_BINDING_POWER = 20;
+const int EQ_RIGHT_BINDING_POWER = 21;
 
 node_t *parse(int min_bind_pow);
 
@@ -214,6 +227,36 @@ node_t *parse(int min_bind_pow) {
         return node;
       }
       node = parse_follower(node, "/", DIV_RIGHT_BINDING_POWER, NODE_DIV);
+    } else if (peek("<")) {
+      if (COMPARE_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      node = parse_follower(node, "<", COMPARE_RIGHT_BINDING_POWER, NODE_LT);
+    } else if (peek("<=")) {
+      if (COMPARE_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      node = parse_follower(node, "<=", COMPARE_RIGHT_BINDING_POWER, NODE_LE);
+    } else if (peek(">")) {
+      if (COMPARE_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      node = parse_follower(node, ">", COMPARE_RIGHT_BINDING_POWER, NODE_GT);
+    } else if (peek(">=")) {
+      if (COMPARE_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      node = parse_follower(node, ">=", COMPARE_RIGHT_BINDING_POWER, NODE_GE);
+    } else if (peek("==")) {
+      if (EQ_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      node = parse_follower(node, "==", EQ_RIGHT_BINDING_POWER, NODE_EQ);
+    } else if (peek("!=")) {
+      if (EQ_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      node = parse_follower(node, "!=", EQ_RIGHT_BINDING_POWER, NODE_NEQ);
     } else {
       return node;
     }
@@ -249,11 +292,30 @@ void print_node(node_t *node) {
     case NODE_DIV:
       print_node_binop(node, "/");
       break;
+    case NODE_LT:
+      print_node_binop(node, "<");
+      break;
+    case NODE_LE:
+      print_node_binop(node, "<=");
+      break;
+    case NODE_GT:
+      print_node_binop(node, ">");
+      break;
+    case NODE_GE:
+      print_node_binop(node, ">=");
+      break;
+    case NODE_EQ:
+      print_node_binop(node, "==");
+      break;
+    case NODE_NEQ:
+      print_node_binop(node, "!=");
+      break;
     case NODE_NUM:
       fprintf(stderr, "%d", node->val);
       break;
 
     default:
+      assert(!"unimplemented printer");
       break;
   }
 }
@@ -293,8 +355,19 @@ void gen(node_t *node) {
     case NODE_DIV:
       printf("\tdiv t0, t1, t0\n");
       break;
+    case NODE_EQ:
+      printf("\tslt t2, t0, t1\n");  // a < b
+      printf("\tslt t3, t1, t0\n");  // a > b
+      printf("\tor  t0, t2, t3\n");  // (a < b) | (a > b) : a==b-> 0, a!=b->1
+      printf("\tli  t1, 1\n");
+      printf("\tsub t0, t1, t0\n");
+      break;
+    case NODE_NEQ:
+      printf("\tsub t0, t1, t0\n");
+      printf("\tsnez t0, t0\n");
+      break;
     default:
-      assert("gen invalid node");
+      assert(!"gen invalid node");
   }
   printf("\taddi sp, sp, -4\n");
   printf("\tsw t0, 0(sp)\n");
@@ -310,8 +383,8 @@ int main(int argc, char **argv) {
   node_t *node = parse(0);
   assert(at_eof());
 
-  // print_node(node);
-  // fprintf(stderr, "\n");
+  print_node(node);
+  fprintf(stderr, "\n");
 
   print_header();
   print_main_header();
