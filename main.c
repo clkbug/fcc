@@ -7,17 +7,17 @@
 #include <string.h>
 
 void print_header() {
-  printf("\t.file	\"main.c\"\n");
-  printf("\t.option nopic\n");
-  printf("\t.text\n");
-  printf("\t.section\t.rodata\n");
-  printf("\t.align\t4\n");
+  printf("  .file	\"main.c\"\n");
+  printf("  .option nopic\n");
+  printf("  .text\n");
+  printf("  .section  .rodata\n");
+  printf("  .align  4\n");
   printf("\n");
 }
 
 void print_main_header() {
-  printf("\t.globl\tmain\n");
-  printf("\t.type	main, @function\n");
+  printf("  .globl  main\n");
+  printf("  .type	main, @function\n");
   printf("main:\n");
 }
 
@@ -325,9 +325,9 @@ void gen(node_t *node) {
   // fprintf(stderr, "\n");
   if (node->kind == NODE_NUM) {
     // push
-    printf("\taddi sp, sp, -4\n");
-    printf("\tli t0, %d\n", node->val);
-    printf("\tsw t0, 0(sp)\n");
+    printf("  addi sp, sp, -4\n");
+    printf("  li t0, %d\n", node->val);
+    printf("  sw t0, 0(sp)\n");
     return;
   }
   if (node->lhs != NULL) {
@@ -338,39 +338,39 @@ void gen(node_t *node) {
   }
 
   // pop x2
-  printf("\tlw t0, 0(sp)\n");
-  printf("\tlw t1, +4(sp)\n");
-  printf("\taddi sp, sp, +8\n");
+  printf("  lw t0, 0(sp)\n");
+  printf("  lw t1, +4(sp)\n");
+  printf("  addi sp, sp, +8\n");
 
   switch (node->kind) {
     case NODE_ADD:
-      printf("\tadd t0, t1, t0\n");
+      printf("  add t0, t1, t0\n");
       break;
     case NODE_SUB:
-      printf("\tsub t0, t1, t0\n");
+      printf("  sub t0, t1, t0\n");
       break;
     case NODE_MUL:
-      printf("\tmul t0, t1, t0\n");
+      printf("  mul t0, t1, t0\n");
       break;
     case NODE_DIV:
-      printf("\tdiv t0, t1, t0\n");
+      printf("  div t0, t1, t0\n");
       break;
     case NODE_EQ:
-      printf("\tslt t2, t0, t1\n");  // a < b
-      printf("\tslt t3, t1, t0\n");  // a > b
-      printf("\tor  t0, t2, t3\n");  // (a < b) | (a > b) : a==b-> 0, a!=b->1
-      printf("\tli  t1, 1\n");
-      printf("\tsub t0, t1, t0\n");
+      printf("  slt t2, t0, t1\n");  // a < b
+      printf("  slt t3, t1, t0\n");  // a > b
+      printf("  or  t0, t2, t3\n");  // (a < b) | (a > b) : a==b-> 0, a!=b->1
+      printf("  li  t1, 1\n");
+      printf("  sub t0, t1, t0\n");
       break;
     case NODE_NEQ:
-      printf("\tsub t0, t1, t0\n");
-      printf("\tsnez t0, t0\n");
+      printf("  sub t0, t1, t0\n");
+      printf("  snez t0, t0\n");
       break;
     default:
       assert(!"gen invalid node");
   }
-  printf("\taddi sp, sp, -4\n");
-  printf("\tsw t0, 0(sp)\n");
+  printf("  addi sp, sp, -4\n");
+  printf("  sw t0, 0(sp)\n");
 }
 
 int main(int argc, char **argv) {
@@ -392,11 +392,11 @@ int main(int argc, char **argv) {
   gen(node);
 
   // pop
-  printf("\tlw a0, 0(sp)\n");
-  printf("\taddi sp, sp, 4\n");
+  printf("  lw a0, 0(sp)\n");
+  printf("  addi sp, sp, 4\n");
 
   // ret
-  printf("\tret\n");
+  printf("  ret\n");
 
   return 0;
 }
