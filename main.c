@@ -39,28 +39,32 @@ typedef struct token_t {
   token_kind_t kind;
   struct token_t *next;
   char *str;
+  size_t len;  // TK_RESERVED length
   int num;
 } token_t;
 
 token_t *token;
 
-bool consume(char op) {
-  if (token->kind != TK_RESERVED || token->str[0] != op) {
+bool consume(char *op) {
+  if (token->kind != TK_RESERVED || strlen(op) != token->len ||
+      memcmp(token->str, op, token->len)) {
     return false;
   }
   token = token->next;
   return true;
 }
 
-bool peek(char op) {
-  if (token->kind != TK_RESERVED || token->str[0] != op) {
+bool peek(char *op) {
+  if (token->kind != TK_RESERVED || strlen(op) != token->len ||
+      memcmp(token->str, op, token->len)) {
     return false;
   }
   return true;
 }
 
-void expect(char op) {
-  if (token->kind != TK_RESERVED || token->str[0] != op) {
+void expect(char *op) {
+  if (token->kind != TK_RESERVED || strlen(op) != token->len ||
+      memcmp(token->str, op, token->len)) {
     error("not '%c', got '%s'\n", op, token->str);
   }
   token = token->next;
@@ -77,10 +81,11 @@ int expect_int() {
 
 bool at_eof() { return token->kind == TK_EOF; }
 
-token_t *new_token(token_kind_t kind, token_t *cur, char *str) {
+token_t *new_token(token_kind_t kind, token_t *cur, char *str, size_t len) {
   token_t *tok = calloc(1, sizeof(token_t));
   tok->kind = kind;
   tok->str = str;
+  tok->len = len;
   cur->next = tok;
   return tok;
 }
@@ -96,14 +101,23 @@ token_t *tokenize(char *p) {
       continue;
     }
 
-    if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' ||
-        *p == ')') {
-      cur = new_token(TK_RESERVED, cur, p++);
+    if (2 <= strlen(p)) {
+      if (memcmp(p, "==", 2) == 0 || memcmp(p, "!=", 2) == 0 ||
+          memcmp(p, "<=", 2) == 0 || memcmp(p, ">=", 2) == 0) {
+        cur = new_token(TK_RESERVED, cur, p, 2);
+        p += 2;
+        continue;
+      }
+    }
+    if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '>' ||
+        *p == '<' || *p == '(' || *p == ')') {
+      cur = new_token(TK_RESERVED, cur, p, 1);
+      p++;
       continue;
     }
 
     if (isdigit(*p)) {
-      cur = new_token(TK_INT, cur, p);
+      cur = new_token(TK_INT, cur, p, 0);
       cur->num = strtol(p, &p, 10);
       continue;
     }
@@ -111,7 +125,7 @@ token_t *tokenize(char *p) {
     error("failed to tokenize at '%c'\n", *p);
   }
 
-  new_token(TK_EOF, cur, p);
+  new_token(TK_EOF, cur, p, 0);
   return head.next;
 }
 
@@ -154,57 +168,57 @@ node_t *parse(int min_bind_pow) {
   node_t *node = new_node();
 
   // parse leading operator
-  if (consume('-')) {
+  if (consume("-")) {
     node_t *follower = parse(NEG_RIGHT_BIND_POW);
     node->kind = NODE_MINUS;
     node->rhs = follower;
-  } else if (consume('(')) {
+  } else if (consume("(")) {
     node = parse(0);
-    expect(')');
+    expect(")");
   } else {
     node = parse_int();
   }
 
   // parse following opertors
   for (;;) {
-    if (peek('+')) {
+    if (peek("+")) {
       if (PLUS_LEFT_BINDING_POWER <= min_bind_pow) {
         return node;
       }
-      consume('+');
+      consume("+");
       node_t *follower = parse(PLUS_RIGHT_BINDING_POWER);
       node_t *leader = node;
       node = new_node();
       node->kind = NODE_ADD;
       node->lhs = leader;
       node->rhs = follower;
-    } else if (peek('-')) {
+    } else if (peek("-")) {
       if (MINUS_LEFT_BINDING_POWER <= min_bind_pow) {
         return node;
       }
-      consume('-');
+      consume("-");
       node_t *follower = parse(MINUS_RIGHT_BINDING_POWER);
       node_t *leader = node;
       node = new_node();
       node->kind = NODE_SUB;
       node->lhs = leader;
       node->rhs = follower;
-    } else if (peek('*')) {
+    } else if (peek("*")) {
       if (MUL_LEFT_BINDING_POWER <= min_bind_pow) {
         return node;
       }
-      consume('*');
+      consume("*");
       node_t *follower = parse(MUL_RIGHT_BINDING_POWER);
       node_t *leader = node;
       node = new_node();
       node->kind = NODE_MUL;
       node->lhs = leader;
       node->rhs = follower;
-    } else if (peek('/')) {
+    } else if (peek("/")) {
       if (DIV_LEFT_BINDING_POWER <= min_bind_pow) {
         return node;
       }
-      consume('/');
+      consume("/");
       node_t *follower = parse(DIV_RIGHT_BINDING_POWER);
       node_t *leader = node;
       node = new_node();
@@ -305,6 +319,7 @@ int main(int argc, char **argv) {
   token = tokenize(argv[1]);
   assert(!at_eof());
   node_t *node = parse(0);
+  assert(at_eof());
 
   // print_node(node);
   // fprintf(stderr, "\n");
