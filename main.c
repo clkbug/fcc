@@ -338,8 +338,8 @@ void gen(node_t *node) {
   }
 
   // pop x2
-  printf("  lw t0, 0(sp)\n");
-  printf("  lw t1, +4(sp)\n");
+  printf("  lw t0, 0(sp)\n");   // rhs
+  printf("  lw t1, +4(sp)\n");  // lhs
   printf("  addi sp, sp, +8\n");
 
   switch (node->kind) {
@@ -355,12 +355,34 @@ void gen(node_t *node) {
     case NODE_DIV:
       printf("  div t0, t1, t0\n");
       break;
+    case NODE_LT:
+      printf("  slt t0, t1, t0\n");
+      break;
+    case NODE_LE:
+      printf("  slt t2, t1, t0\n");  // t2 <- t1 < t0
+      printf("  sub t3, t0, t1\n");  // t3 <- t0 - t1
+      printf("  snez t3, t3\n");     // t3 <- t3 != 0 : a == b -> 0, a != b -> 1
+      printf("  neg  t3, t3\n");     // t3 <- a == b -> 0, a != b -> -1
+      printf("  addi t3, t3, 1\n");  // t3 <- a == b -> 1, a != b -> 0
+      printf("  or   t0, t2, t3\n");
+      break;
+    case NODE_GT:
+      printf("  sgt t0, t1, t0\n");
+      break;
+    case NODE_GE:
+      printf("  slt t2, t0, t1\n");  // t2 <- t0 < t1
+      printf("  sub t3, t1, t0\n");  // t3 <- t1 - t0
+      printf("  snez t3, t3\n");     // t3 <- t3 != 0 : a == b -> 0, a != b -> 1
+      printf("  neg  t3, t3\n");     // t3 <- a == b -> 0, a != b -> -1
+      printf("  addi t3, t3, 1\n");  // t3 <- a == b -> 1, a != b -> 0
+      printf("  or   t0, t2, t3\n");
+      break;
     case NODE_EQ:
-      printf("  slt t2, t0, t1\n");  // a < b
-      printf("  slt t3, t1, t0\n");  // a > b
-      printf("  or  t0, t2, t3\n");  // (a < b) | (a > b) : a==b-> 0, a!=b->1
-      printf("  li  t1, 1\n");
-      printf("  sub t0, t1, t0\n");
+      printf("  slt t2, t1, t0\n");  // a < b
+      printf("  slt t3, t0, t1\n");  // a > b
+      printf("  or  t1, t2, t3\n");  // (a < b) | (a > b) : a==b-> 0, a!=b->1
+      printf("  li  t0, 1\n");
+      printf("  sub t0, t0, t1\n");
       break;
     case NODE_NEQ:
       printf("  sub t0, t1, t0\n");
