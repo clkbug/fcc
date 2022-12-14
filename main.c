@@ -48,6 +48,7 @@ void error(char *fmt, ...) {
 
 typedef enum {
   TK_RESERVED,
+  TK_IDENT,
   TK_INT,
   TK_EOF,
 } token_kind_t;
@@ -79,6 +80,8 @@ bool peek(char *op) {
   return true;
 }
 
+bool is_int() { return token->kind == TK_INT; }
+
 void expect(char *op) {
   if (token->kind != TK_RESERVED || strlen(op) != token->len ||
       memcmp(token->str, op, token->len)) {
@@ -94,6 +97,15 @@ int expect_int() {
   int val = token->num;
   token = token->next;
   return val;
+}
+
+int expect_ident() {
+  if (token->kind != TK_IDENT) {
+    error("'%s' is not ident\n", token->str);
+  }
+  int offset = (token->str[0] - 'a') * 4;
+  token = token->next;
+  return offset;
 }
 
 bool at_eof() { return token->kind == TK_EOF; }
@@ -127,8 +139,14 @@ token_t *tokenize(char *p) {
       }
     }
     if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '>' ||
-        *p == '<' || *p == '(' || *p == ')') {
+        *p == '<' || *p == '(' || *p == ')' || *p == '=') {
       cur = new_token(TK_RESERVED, cur, p, 1);
+      p++;
+      continue;
+    }
+
+    if ('a' <= *p && *p <= 'z') {
+      cur = new_token(TK_IDENT, cur, p, 1);
       p++;
       continue;
     }
@@ -159,13 +177,16 @@ typedef enum {
   NODE_GT,
   NODE_GE,
   NODE_NUM,
+  NODE_ASSIGN,
+  NODE_LVAR,
 } node_kind_t;
 
 typedef struct node_t {
   node_kind_t kind;
   struct node_t *lhs;
   struct node_t *rhs;
-  int val;
+  int val;     // for NODE_NUM
+  int offset;  // for NODE_LVAR, from fp
 } node_t;
 
 node_t *new_node() { return (node_t *)calloc(1, sizeof(node_t)); }
@@ -174,6 +195,13 @@ node_t *parse_int() {
   node_t *node = new_node();
   node->kind = NODE_NUM;
   node->val = expect_int();
+  return node;
+}
+
+node_t *parse_lvar() {
+  node_t *node = new_node();
+  node->kind = NODE_LVAR;
+  node->offset = expect_ident();
   return node;
 }
 
@@ -218,8 +246,10 @@ node_t *parse(int min_bind_pow) {
   } else if (consume("(")) {
     node = parse(0);
     expect(")");
-  } else {
+  } else if (is_int()) {
     node = parse_int();
+  } else {
+    node = parse_lvar();
   }
 
   // parse following opertors
@@ -330,8 +360,11 @@ void print_node(node_t *node) {
     case NODE_NUM:
       fprintf(stderr, "%d", node->val);
       break;
-
+    case NODE_LVAR:
+      fprintf(stderr, "%c", node->offset / 4 + 'a');
+      break;
     default:
+      fprintf(stderr, "unimplemented printer: %d\n", node->kind);
       assert(!"unimplemented printer");
       break;
   }
@@ -405,9 +438,13 @@ void gen(node_t *node) {
       printf("  sub t0, t1, t0\n");
       printf("  snez t0, t0\n");
       break;
+    case NODE_LVAR:
+      printf("  lw t0, %d(fp)\n", node->offset);
+      break;
     default:
       assert(!"gen invalid node");
   }
+  // push
   printf("  addi sp, sp, -4\n");
   printf("  sw t0, 0(sp)\n");
 }

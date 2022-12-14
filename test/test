@@ -48,6 +48,9 @@ assert 1 "8 <= 8"
 assert 0 "9 <= 8"
 assert 1 "8 >= 7"
 assert 1 "2 * 4 >= 3 + 4"
+assert 0 "a"
+assert 0 "b"
+assert 0 "a + b"
 
 
 echo OK
