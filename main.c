@@ -15,10 +15,27 @@ void print_header() {
   printf("\n");
 }
 
-void print_main_header() {
+void print_main_prologue() {
   printf("  .globl  main\n");
   printf("  .type	main, @function\n");
   printf("main:\n");
+  printf("  addi sp, sp, -4\n");
+  printf("  sw   fp, 0(sp)\n");  // save fp
+  printf("  addi sp, sp, -104\n");
+  printf("  mv   fp, sp\n");  // update fp
+}
+
+void print_main_epilogue() {
+  // pop
+  printf("  lw a0, 0(sp)\n");
+  printf("  addi sp, sp, 4\n");
+
+  // sp
+  printf("  addi sp, sp, 104\n");
+  printf("  lw   fp, 0(sp)\n");
+  printf("  addi sp, sp, 4\n");
+  // ret
+  printf("  ret\n");
 }
 
 void error(char *fmt, ...) {
@@ -409,16 +426,11 @@ int main(int argc, char **argv) {
   fprintf(stderr, "\n");
 
   print_header();
-  print_main_header();
+  print_main_prologue();
 
   gen(node);
 
-  // pop
-  printf("  lw a0, 0(sp)\n");
-  printf("  addi sp, sp, 4\n");
-
-  // ret
-  printf("  ret\n");
+  print_main_epilogue();
 
   return 0;
 }
