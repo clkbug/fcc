@@ -391,6 +391,14 @@ void gen_push(char *src) {
   printf("  sw %s, 0(sp)\n", src);
 }
 
+void gen_lval(node_t *node) {
+  if (node->kind != NODE_LVAR) {
+    error("左辺値が左辺値ではない！ kind=%d", node->kind);
+  }
+  printf("  addi t0, fp, %d\n", node->offset);
+  gen_push("t0");
+}
+
 void gen(node_t *node) {
   // print_node(node);
   // fprintf(stderr, "\n");
@@ -485,15 +493,18 @@ void gen(node_t *node) {
       gen_push("t0");
       break;
     case NODE_LVAR:
-      printf("  lw t0, %d(fp)\n", node->offset);
+      gen_lval(node);
+      gen_pop("t0");
+      printf("  lw t0, 0(t0)\n");
       gen_push("t0");
       break;
     case NODE_ASSIGN:
       gen(node->rhs);
       assert(node->lhs->kind == NODE_LVAR);
-      gen_pop("t0");
-      printf("  sw t0, %d(fp)\n", node->lhs->offset);
-      gen_push("t0");
+      gen_lval(node->lhs);
+      gen_pop("t1");  // address
+      gen_pop("t0");  // value
+      printf("  sw t0, 0(t1)\n");
       break;
     default:
       assert(!"gen invalid node");
