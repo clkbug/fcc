@@ -207,20 +207,23 @@ node_t *parse_lvar() {
 
 // binding power
 // high is prior
-const int NEG_RIGHT_BIND_POW = 91;
-const int MUL_LEFT_BINDING_POWER = 80;
-const int MUL_RIGHT_BINDING_POWER = 81;
-const int DIV_LEFT_BINDING_POWER = 80;
-const int DIV_RIGHT_BINDING_POWER = 81;
-const int PLUS_LEFT_BINDING_POWER = 50;
-const int PLUS_RIGHT_BINDING_POWER = 51;
-const int MINUS_LEFT_BINDING_POWER = 50;
-const int MINUS_RIGHT_BINDING_POWER = 51;
+const int NEG_RIGHT_BIND_POW = 151;
+const int MUL_LEFT_BINDING_POWER = 130;
+const int MUL_RIGHT_BINDING_POWER = 131;
+const int DIV_LEFT_BINDING_POWER = 130;
+const int DIV_RIGHT_BINDING_POWER = 131;
+const int PLUS_LEFT_BINDING_POWER = 120;
+const int PLUS_RIGHT_BINDING_POWER = 121;
+const int MINUS_LEFT_BINDING_POWER = 120;
+const int MINUS_RIGHT_BINDING_POWER = 121;
 
-const int COMPARE_LEFT_BINDING_POWER = 30;
-const int COMPARE_RIGHT_BINDING_POWER = 31;
-const int EQ_LEFT_BINDING_POWER = 20;
-const int EQ_RIGHT_BINDING_POWER = 21;
+const int COMPARE_LEFT_BINDING_POWER = 100;
+const int COMPARE_RIGHT_BINDING_POWER = 101;
+const int EQ_LEFT_BINDING_POWER = 90;
+const int EQ_RIGHT_BINDING_POWER = 91;
+
+const int ASSIGN_LEFT_BINDING_POWER = 21;
+const int ASSIGN_RIGHT_BINDING_POWER = 20;
 
 node_t *parse(int min_bind_pow);
 
@@ -304,6 +307,11 @@ node_t *parse(int min_bind_pow) {
         return node;
       }
       node = parse_follower(node, "!=", EQ_RIGHT_BINDING_POWER, NODE_NEQ);
+    } else if (peek("=")) {
+      if (ASSIGN_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      node = parse_follower(node, "=", ASSIGN_RIGHT_BINDING_POWER, NODE_ASSIGN);
     } else {
       return node;
     }
@@ -363,11 +371,24 @@ void print_node(node_t *node) {
     case NODE_LVAR:
       fprintf(stderr, "%c", node->offset / 4 + 'a');
       break;
+    case NODE_ASSIGN:
+      print_node_binop(node, "=");
+      break;
     default:
       fprintf(stderr, "unimplemented printer: %d\n", node->kind);
       assert(!"unimplemented printer");
       break;
   }
+}
+
+void gen_pop(char *dst) {
+  printf("  lw %s, 0(sp)\n", dst);
+  printf("  addi sp, sp, +4\n");
+}
+
+void gen_push(char *src) {
+  printf("  addi sp, sp, -4\n");
+  printf("  sw %s, 0(sp)\n", src);
 }
 
 void gen(node_t *node) {
@@ -387,66 +408,96 @@ void gen(node_t *node) {
     gen(node->rhs);
   }
 
-  // pop x2
-  printf("  lw t0, 0(sp)\n");   // rhs
-  printf("  lw t1, +4(sp)\n");  // lhs
-  printf("  addi sp, sp, +8\n");
-
   switch (node->kind) {
     case NODE_ADD:
+      gen_pop("t0");
+      gen_pop("t1");
       printf("  add t0, t1, t0\n");
+      gen_push("t0");
       break;
     case NODE_SUB:
+      gen_pop("t0");
+      gen_pop("t1");
       printf("  sub t0, t1, t0\n");
+      gen_push("t0");
       break;
     case NODE_MUL:
+      gen_pop("t0");
+      gen_pop("t1");
       printf("  mul t0, t1, t0\n");
+      gen_push("t0");
       break;
     case NODE_DIV:
+      gen_pop("t0");
+      gen_pop("t1");
       printf("  div t0, t1, t0\n");
+      gen_push("t0");
       break;
     case NODE_LT:
+      gen_pop("t0");
+      gen_pop("t1");
       printf("  slt t0, t1, t0\n");
+      gen_push("t0");
       break;
     case NODE_LE:
+      gen_pop("t0");
+      gen_pop("t1");
       printf("  slt t2, t1, t0\n");  // t2 <- t1 < t0
       printf("  sub t3, t0, t1\n");  // t3 <- t0 - t1
       printf("  snez t3, t3\n");     // t3 <- t3 != 0 : a == b -> 0, a != b -> 1
       printf("  neg  t3, t3\n");     // t3 <- a == b -> 0, a != b -> -1
       printf("  addi t3, t3, 1\n");  // t3 <- a == b -> 1, a != b -> 0
       printf("  or   t0, t2, t3\n");
+      gen_push("t0");
       break;
     case NODE_GT:
+      gen_pop("t0");
+      gen_pop("t1");
       printf("  sgt t0, t1, t0\n");
+      gen_push("t0");
       break;
     case NODE_GE:
+      gen_pop("t0");
+      gen_pop("t1");
       printf("  slt t2, t0, t1\n");  // t2 <- t0 < t1
       printf("  sub t3, t1, t0\n");  // t3 <- t1 - t0
       printf("  snez t3, t3\n");     // t3 <- t3 != 0 : a == b -> 0, a != b -> 1
       printf("  neg  t3, t3\n");     // t3 <- a == b -> 0, a != b -> -1
       printf("  addi t3, t3, 1\n");  // t3 <- a == b -> 1, a != b -> 0
       printf("  or   t0, t2, t3\n");
+      gen_push("t0");
       break;
     case NODE_EQ:
+      gen_pop("t0");
+      gen_pop("t1");
       printf("  slt t2, t1, t0\n");  // a < b
       printf("  slt t3, t0, t1\n");  // a > b
       printf("  or  t1, t2, t3\n");  // (a < b) | (a > b) : a==b-> 0, a!=b->1
       printf("  li  t0, 1\n");
       printf("  sub t0, t0, t1\n");
+      gen_push("t0");
       break;
     case NODE_NEQ:
+      gen_pop("t0");
+      gen_pop("t1");
       printf("  sub t0, t1, t0\n");
       printf("  snez t0, t0\n");
+      gen_push("t0");
       break;
     case NODE_LVAR:
       printf("  lw t0, %d(fp)\n", node->offset);
+      gen_push("t0");
+      break;
+    case NODE_ASSIGN:
+      gen(node->rhs);
+      assert(node->lhs->kind == NODE_LVAR);
+      gen_pop("t0");
+      printf("  sw t0, %d(fp)\n", node->lhs->offset);
+      gen_push("t0");
       break;
     default:
       assert(!"gen invalid node");
   }
-  // push
-  printf("  addi sp, sp, -4\n");
-  printf("  sw t0, 0(sp)\n");
 }
 
 int main(int argc, char **argv) {
