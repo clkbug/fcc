@@ -58,8 +58,14 @@ assert 3 "(a=1) + 2"
 assert 2 "(a=1) + a" # 評価順依存？
 assert 3 "a = b = 1 + 2"
 assert 2 "a = (b = 1) + 1"
+assert 27 "(a = 1) + (b = 2) + (a + 3) * (b + 4)"
 assert 0 "abc = 0"
 assert 1 "abc = 1"
+assert 3 "1 + (abc = 2)"
+assert 5 "1 + (abc = 2) + abc"
+assert 7 "(first = 1 + 2) + (second = 3 + 4) - first"
+assert 3 "(first = 1 + 2) + (second = 3 + 4) - second"
+assert 42 "(first = 1 + 2) + (second = 3 + 4) + (third = 5 + 6) + first + second + third"
 
 
 echo OK
