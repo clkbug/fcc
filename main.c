@@ -154,7 +154,7 @@ token_t *tokenize(char *p) {
       }
     }
     if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '>' ||
-        *p == '<' || *p == '(' || *p == ')' || *p == '=') {
+        *p == '<' || *p == '(' || *p == ')' || *p == '=' || *p == ';') {
       cur = new_token(TK_RESERVED, cur, p, 1);
       p++;
       continue;
@@ -373,9 +373,11 @@ node_t *parse_stmt() {
   if (consume_reserved(TK_RETURN)) {
     node->kind = NODE_RETURN;
     node->rhs = parse_exp(0);
+    expect(";");
     return node;
   }
   node = parse_exp(0);
+  expect(";");
   return node;
 }
 
