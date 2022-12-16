@@ -53,7 +53,13 @@ assert 0 "b"
 assert 0 "a + b"
 assert 1 "a = 1"
 assert 6 "a = 1 * 2 + 3 - 4 + 5"
+assert 3 "1 + (a = 2)"
+assert 3 "(a=1) + 2"
+assert 2 "(a=1) + a" # 評価順依存？
 assert 3 "a = b = 1 + 2"
+assert 2 "a = (b = 1) + 1"
+assert 0 "abc = 0"
+assert 1 "abc = 1"
 
 
 echo OK

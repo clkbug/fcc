@@ -99,13 +99,13 @@ int expect_int() {
   return val;
 }
 
-int expect_ident() {
+token_t *consume_ident() {
   if (token->kind != TK_IDENT) {
     error("'%s' is not ident\n", token->str);
   }
-  int offset = (token->str[0] - 'a') * 4;
+  token_t *tok = token;
   token = token->next;
-  return offset;
+  return tok;
 }
 
 bool at_eof() { return token->kind == TK_EOF; }
@@ -145,9 +145,13 @@ token_t *tokenize(char *p) {
       continue;
     }
 
-    if ('a' <= *p && *p <= 'z') {
-      cur = new_token(TK_IDENT, cur, p, 1);
-      p++;
+    if (isalpha(*p)) {
+      int n = 1;
+      while (isalnum(*(p + n)) || *(p + n) == '_') {
+        n++;
+      }
+      cur = new_token(TK_IDENT, cur, p, n);
+      p += n;
       continue;
     }
 
@@ -189,19 +193,30 @@ typedef struct node_t {
   int offset;  // for NODE_LVAR, from fp
 } node_t;
 
+typedef struct lvar_t {
+  struct lvar_t *next;
+  char *name;  // var's name
+  size_t len;  // var name's length
+  int offset;  // from fp
+} lvar_t;
+
+lvar_t *locals;
+
+lvar_t *find_lvar(token_t *tok) {
+  for (lvar_t *var = locals; var; var = var->next) {
+    if (var->len == tok->len && !memcmp(tok->str, var->name, var->len)) {
+      return var;
+    }
+  }
+  return NULL;
+}
+
 node_t *new_node() { return (node_t *)calloc(1, sizeof(node_t)); }
 
 node_t *parse_int() {
   node_t *node = new_node();
   node->kind = NODE_NUM;
   node->val = expect_int();
-  return node;
-}
-
-node_t *parse_lvar() {
-  node_t *node = new_node();
-  node->kind = NODE_LVAR;
-  node->offset = expect_ident();
   return node;
 }
 
@@ -225,12 +240,12 @@ const int EQ_RIGHT_BINDING_POWER = 91;
 const int ASSIGN_LEFT_BINDING_POWER = 21;
 const int ASSIGN_RIGHT_BINDING_POWER = 20;
 
-node_t *parse(int min_bind_pow);
+node_t *parse_exp(int min_bind_pow);
 
 node_t *parse_follower(node_t *leader, char *op, int right_binding_power,
                        node_kind_t kind) {
   consume(op);
-  node_t *follower = parse(right_binding_power);
+  node_t *follower = parse_exp(right_binding_power);
   node_t *node = new_node();
   node->kind = kind;
   node->lhs = leader;
@@ -238,21 +253,34 @@ node_t *parse_follower(node_t *leader, char *op, int right_binding_power,
   return node;
 }
 
-node_t *parse(int min_bind_pow) {
+node_t *parse_exp(int min_bind_pow) {
   node_t *node = new_node();
 
   // parse leading operator
   if (consume("-")) {
-    node_t *follower = parse(NEG_RIGHT_BIND_POW);
+    node_t *follower = parse_exp(NEG_RIGHT_BIND_POW);
     node->kind = NODE_MINUS;
     node->rhs = follower;
   } else if (consume("(")) {
-    node = parse(0);
+    node = parse_exp(0);
     expect(")");
   } else if (is_int()) {
     node = parse_int();
   } else {
-    node = parse_lvar();
+    token_t *tok = consume_ident();
+    node->kind = NODE_LVAR;
+    lvar_t *lvar = find_lvar(tok);
+    if (lvar) {
+      node->offset = lvar->offset;
+    } else {
+      lvar = calloc(1, sizeof(lvar_t));
+      lvar->next = locals;
+      lvar->name = tok->str;
+      lvar->len = tok->len;
+      lvar->offset = locals ? locals->offset + 8 : 0;
+      node->offset = lvar->offset;
+      locals = lvar;
+    }
   }
 
   // parse following opertors
@@ -409,45 +437,51 @@ void gen(node_t *node) {
     printf("  sw t0, 0(sp)\n");
     return;
   }
-  if (node->lhs != NULL) {
-    gen(node->lhs);
-  }
-  if (node->rhs != NULL) {
-    gen(node->rhs);
-  }
 
   switch (node->kind) {
     case NODE_ADD:
+      gen(node->lhs);
+      gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
       printf("  add t0, t1, t0\n");
       gen_push("t0");
       break;
     case NODE_SUB:
+      gen(node->lhs);
+      gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
       printf("  sub t0, t1, t0\n");
       gen_push("t0");
       break;
     case NODE_MUL:
+      gen(node->lhs);
+      gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
       printf("  mul t0, t1, t0\n");
       gen_push("t0");
       break;
     case NODE_DIV:
+      gen(node->lhs);
+      gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
       printf("  div t0, t1, t0\n");
       gen_push("t0");
       break;
     case NODE_LT:
+      gen(node->lhs);
+      gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
       printf("  slt t0, t1, t0\n");
       gen_push("t0");
       break;
     case NODE_LE:
+      gen(node->lhs);
+      gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
       printf("  slt t2, t1, t0\n");  // t2 <- t1 < t0
@@ -459,12 +493,16 @@ void gen(node_t *node) {
       gen_push("t0");
       break;
     case NODE_GT:
+      gen(node->lhs);
+      gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
       printf("  sgt t0, t1, t0\n");
       gen_push("t0");
       break;
     case NODE_GE:
+      gen(node->lhs);
+      gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
       printf("  slt t2, t0, t1\n");  // t2 <- t0 < t1
@@ -476,6 +514,8 @@ void gen(node_t *node) {
       gen_push("t0");
       break;
     case NODE_EQ:
+      gen(node->lhs);
+      gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
       printf("  slt t2, t1, t0\n");  // a < b
@@ -486,6 +526,8 @@ void gen(node_t *node) {
       gen_push("t0");
       break;
     case NODE_NEQ:
+      gen(node->lhs);
+      gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
       printf("  sub t0, t1, t0\n");
@@ -505,6 +547,7 @@ void gen(node_t *node) {
       gen_pop("t1");  // address
       gen_pop("t0");  // value
       printf("  sw t0, 0(t1)\n");
+      gen_push("t0");  // value again
       break;
     default:
       assert(!"gen invalid node");
@@ -518,7 +561,7 @@ int main(int argc, char **argv) {
   }
   token = tokenize(argv[1]);
   assert(!at_eof());
-  node_t *node = parse(0);
+  node_t *node = parse_exp(0);
   assert(at_eof());
 
   print_node(node);
