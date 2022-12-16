@@ -47,7 +47,9 @@ void error(char *fmt, ...) {
 }
 
 typedef enum {
+  TK_INVALID,
   TK_RESERVED,
+  TK_RETURN,
   TK_IDENT,
   TK_INT,
   TK_EOF,
@@ -92,7 +94,9 @@ void expect(char *op) {
 
 int expect_int() {
   if (token->kind != TK_INT) {
-    error("'%s' is not int\n", token->str);
+    char *s = calloc(token->len + 1, sizeof(char));
+    memcpy(s, token->str, token->len);
+    error("'%s' is not int\n", s);
   }
   int val = token->num;
   token = token->next;
@@ -101,7 +105,18 @@ int expect_int() {
 
 token_t *consume_ident() {
   if (token->kind != TK_IDENT) {
-    error("'%s' is not ident\n", token->str);
+    char *s = calloc(token->len + 1, sizeof(char));
+    memcpy(s, token->str, token->len);
+    error("'%s' is not ident\n", s);
+  }
+  token_t *tok = token;
+  token = token->next;
+  return tok;
+}
+
+token_t *consume_reserved(token_kind_t kind) {
+  if (token->kind != kind) {
+    return NULL;
   }
   token_t *tok = token;
   token = token->next;
@@ -152,6 +167,11 @@ token_t *tokenize(char *p) {
       }
       cur = new_token(TK_IDENT, cur, p, n);
       p += n;
+
+      if (strncmp(cur->str, "return", 6) == 0) {
+        cur->kind = TK_RETURN;
+      }
+
       continue;
     }
 
@@ -169,6 +189,7 @@ token_t *tokenize(char *p) {
 }
 
 typedef enum {
+  NODE_INVALID,
   NODE_MINUS,
   NODE_ADD,
   NODE_SUB,
@@ -183,6 +204,7 @@ typedef enum {
   NODE_NUM,
   NODE_ASSIGN,
   NODE_LVAR,
+  NODE_RETURN,
 } node_kind_t;
 
 typedef struct node_t {
@@ -346,6 +368,17 @@ node_t *parse_exp(int min_bind_pow) {
   }
 }
 
+node_t *parse_stmt() {
+  node_t *node = new_node();
+  if (consume_reserved(TK_RETURN)) {
+    node->kind = NODE_RETURN;
+    node->rhs = parse_exp(0);
+    return node;
+  }
+  node = parse_exp(0);
+  return node;
+}
+
 void print_node(node_t *node);
 
 void print_node_binop(node_t *node, char *op) {
@@ -401,6 +434,10 @@ void print_node(node_t *node) {
       break;
     case NODE_ASSIGN:
       print_node_binop(node, "=");
+      break;
+    case NODE_RETURN:
+      fprintf(stderr, "return ");
+      print_node(node->rhs);
       break;
     default:
       fprintf(stderr, "unimplemented printer: %d\n", node->kind);
@@ -549,6 +586,11 @@ void gen(node_t *node) {
       printf("  sw t0, 0(t1)\n");
       gen_push("t0");  // value again
       break;
+    case NODE_RETURN:
+      gen(node->rhs);
+      gen_pop("a0");
+      printf("  ret\n");
+      break;
     default:
       assert(!"gen invalid node");
   }
@@ -561,7 +603,7 @@ int main(int argc, char **argv) {
   }
   token = tokenize(argv[1]);
   assert(!at_eof());
-  node_t *node = parse_exp(0);
+  node_t *node = parse_stmt();
   assert(at_eof());
 
   print_node(node);

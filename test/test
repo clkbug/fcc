@@ -7,6 +7,10 @@ assert() {
   input="$2"
 
   ./fcc "$input" > /tmp/tmp.s
+  if [ $? -ne 0 ]; then
+    echo "'./fcc $input' failed"
+    exit 1
+  fi
   riscv32-unknown-elf-gcc -o /tmp/tmp -g /tmp/tmp.s
   qemu-riscv32 /tmp/tmp
   actual="$?"
@@ -66,6 +70,8 @@ assert 5 "1 + (abc = 2) + abc"
 assert 7 "(first = 1 + 2) + (second = 3 + 4) - first"
 assert 3 "(first = 1 + 2) + (second = 3 + 4) - second"
 assert 42 "(first = 1 + 2) + (second = 3 + 4) + (third = 5 + 6) + first + second + third"
-
+assert 1 "return 1"
+assert 3 "return 1+2"
+assert 7 "return 1+2*3"
 
 echo OK
