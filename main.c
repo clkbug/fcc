@@ -406,6 +406,13 @@ node_t *parse_stmt() {
       node->clause_else = parse_stmt();
     }
     return node;
+  } else if (consume_reserved(TK_WHILE)) {
+    node->kind = NODE_WHILE;
+    expect("(");
+    node->cond = parse_exp(0);
+    expect(")");
+    node->clause_then = parse_stmt();
+    return node;
   }
   node = parse_exp(0);
   expect(";");
@@ -482,6 +489,12 @@ void print_node(node_t *node) {
         fprintf(stderr, " else ");
         print_node(node->clause_else);
       }
+      break;
+    case NODE_WHILE:
+      fprintf(stderr, "while (");
+      print_node(node->cond);
+      fprintf(stderr, ") ");
+      print_node(node->clause_then);
       break;
     default:
       fprintf(stderr, "unimplemented printer: %d\n", node->kind);
@@ -649,6 +662,18 @@ void gen(node_t *node) {
       }
       printf(".ifend%d:\n", end_index);
       break;
+    case NODE_WHILE: {
+      int while_index = gen_label_index();
+      int while_end_index = gen_label_index();
+      printf(".while%d:\n", while_index);
+      gen(node->cond);
+      gen_pop("t0");
+      printf("  beqz t0, .whileend%d\n", while_end_index);
+      gen(node->clause_then);
+      printf("  j .while%d\n", while_index);
+      printf(".whileend%d:\n", while_end_index);
+      break;
+    }
     default:
       error("gen invalid node, kind=%d", node->kind);
   }
