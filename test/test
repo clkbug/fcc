@@ -73,5 +73,8 @@ assert 42 "return (first = 1 + 2) + (second = 3 + 4) + (third = 5 + 6) + first +
 assert 1 "return 1;"
 assert 3 "return 1+2;"
 assert 7 "return 1+2*3;"
+assert 0 "a = 1; b = 2; c = 3; return a + b - c; return a - b + c;"
+assert 2 "a = 1; b = 2; c = 3; return a - b + c;"
+assert 21 "first = 1 + 2; second = 3 + 4; third = 5 + 6; return first + second + third;"
 
 echo OK

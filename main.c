@@ -605,16 +605,16 @@ int main(int argc, char **argv) {
   }
   token = tokenize(argv[1]);
   assert(!at_eof());
-  node_t *node = parse_stmt();
-  assert(at_eof());
-
-  print_node(node);
-  fprintf(stderr, "\n");
 
   print_header();
   print_main_prologue();
 
-  gen(node);
+  while (!at_eof()) {
+    node_t *node = parse_stmt();
+    print_node(node);
+    fprintf(stderr, "\n");
+    gen(node);
+  }
 
   print_main_epilogue();
 
