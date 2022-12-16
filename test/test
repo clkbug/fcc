@@ -76,5 +76,8 @@ assert 7 "return 1+2*3;"
 assert 0 "a = 1; b = 2; c = 3; return a + b - c; return a - b + c;"
 assert 2 "a = 1; b = 2; c = 3; return a - b + c;"
 assert 21 "first = 1 + 2; second = 3 + 4; third = 5 + 6; return first + second + third;"
-
+assert 2 "a = 1; if(a) return 2; else return 3;"
+assert 3 "a = 0; if(a) return 2; else return 3;"
+assert 2 "a = 1; if(a) return 2; return 3;"
+assert 3 "a = 0; if(a) return 2; return 3;"
 echo OK

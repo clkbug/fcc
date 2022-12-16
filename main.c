@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+int label_index = 0;
+
+int gen_label_index() { return label_index++; }
+
 void print_header() {
   printf("  .file	\"main.c\"\n");
   printf("  .option nopic\n");
@@ -50,6 +54,10 @@ typedef enum {
   TK_INVALID,
   TK_RESERVED,
   TK_RETURN,
+  TK_IF,
+  TK_ELSE,
+  TK_WHILE,
+  TK_FOR,
   TK_IDENT,
   TK_INT,
   TK_EOF,
@@ -170,6 +178,12 @@ token_t *tokenize(char *p) {
 
       if (strncmp(cur->str, "return", 6) == 0) {
         cur->kind = TK_RETURN;
+      } else if (strncmp(cur->str, "if", 2) == 0) {
+        cur->kind = TK_IF;
+      } else if (strncmp(cur->str, "else", 4) == 0) {
+        cur->kind = TK_ELSE;
+      } else if (strncmp(cur->str, "while", 5) == 0) {
+        cur->kind = TK_WHILE;
       }
 
       continue;
@@ -205,6 +219,8 @@ typedef enum {
   NODE_ASSIGN,
   NODE_LVAR,
   NODE_RETURN,
+  NODE_IF,
+  NODE_WHILE,
 } node_kind_t;
 
 typedef struct node_t {
@@ -213,6 +229,11 @@ typedef struct node_t {
   struct node_t *rhs;
   int val;     // for NODE_NUM
   int offset;  // for NODE_LVAR, from fp
+
+  // for 'if'
+  struct node_t *cond;
+  struct node_t *clause_then;
+  struct node_t *clause_else;
 } node_t;
 
 typedef struct lvar_t {
@@ -375,6 +396,16 @@ node_t *parse_stmt() {
     node->rhs = parse_exp(0);
     expect(";");
     return node;
+  } else if (consume_reserved(TK_IF)) {
+    node->kind = NODE_IF;
+    expect("(");
+    node->cond = parse_exp(0);
+    expect(")");
+    node->clause_then = parse_stmt();
+    if (consume_reserved(TK_ELSE)) {
+      node->clause_else = parse_stmt();
+    }
+    return node;
   }
   node = parse_exp(0);
   expect(";");
@@ -440,6 +471,17 @@ void print_node(node_t *node) {
     case NODE_RETURN:
       fprintf(stderr, "return ");
       print_node(node->rhs);
+      fprintf(stderr, ";");
+      break;
+    case NODE_IF:
+      fprintf(stderr, "if (");
+      print_node(node->cond);
+      fprintf(stderr, ") ");
+      print_node(node->clause_then);
+      if (node->clause_else) {
+        fprintf(stderr, " else ");
+        print_node(node->clause_else);
+      }
       break;
     default:
       fprintf(stderr, "unimplemented printer: %d\n", node->kind);
@@ -593,8 +635,22 @@ void gen(node_t *node) {
       gen_pop("a0");
       printf("  ret\n");
       break;
+    case NODE_IF:
+      gen(node->cond);
+      gen_pop("t0");
+      int end_index = gen_label_index();
+      int else_index = gen_label_index();
+      printf("  beqz t0, .else%d\n", else_index);
+      gen(node->clause_then);
+      printf("  j .ifend%d\n", end_index);
+      printf(".else%d:\n", else_index);
+      if (node->clause_else) {
+        gen(node->clause_else);
+      }
+      printf(".ifend%d:\n", end_index);
+      break;
     default:
-      assert(!"gen invalid node");
+      error("gen invalid node, kind=%d", node->kind);
   }
 }
 
