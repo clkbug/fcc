@@ -10,38 +10,6 @@ int label_index = 0;
 
 int gen_label_index() { return label_index++; }
 
-void print_header() {
-  printf("  .file	\"main.c\"\n");
-  printf("  .option nopic\n");
-  printf("  .text\n");
-  printf("  .section  .rodata\n");
-  printf("  .align  4\n");
-  printf("\n");
-}
-
-void print_main_prologue() {
-  printf("  .globl  main\n");
-  printf("  .type	main, @function\n");
-  printf("main:\n");
-  printf("  addi sp, sp, -4\n");
-  printf("  sw   fp, 0(sp)\n");  // save fp
-  printf("  addi sp, sp, -104\n");
-  printf("  mv   fp, sp\n");  // update fp
-}
-
-void print_main_epilogue() {
-  // pop
-  printf("  lw a0, 0(sp)\n");
-  printf("  addi sp, sp, 4\n");
-
-  // sp
-  printf("  addi sp, sp, 104\n");
-  printf("  lw   fp, 0(sp)\n");
-  printf("  addi sp, sp, 4\n");
-  // ret
-  printf("  ret\n");
-}
-
 void error(char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -184,6 +152,8 @@ token_t *tokenize(char *p) {
         cur->kind = TK_ELSE;
       } else if (strncmp(cur->str, "while", 5) == 0) {
         cur->kind = TK_WHILE;
+      } else if (strncmp(cur->str, "for", 3) == 0) {
+        cur->kind = TK_FOR;
       }
 
       continue;
@@ -221,25 +191,39 @@ typedef enum {
   NODE_RETURN,
   NODE_IF,
   NODE_WHILE,
+  NODE_FOR,
 } node_kind_t;
 
 typedef struct node_t {
   node_kind_t kind;
   struct node_t *lhs;
   struct node_t *rhs;
-  int val;     // for NODE_NUM
-  int offset;  // for NODE_LVAR, from fp
+  int val;      // for NODE_NUM
+  int offset;   // for NODE_LVAR, from fp
+  bool ignore;  // if true, then pop(ignore) the value
 
-  // for 'if'
+  // for variable
+  char *name;
+  int len;
+
+  // for 'if'/'while'
   struct node_t *cond;
   struct node_t *clause_then;
-  struct node_t *clause_else;
+  struct node_t *clause_else;  // only 'if'
+
+  // for 'for'
+  struct node_t *init;
+  // struct node_t *cond;
+  struct node_t *next;
+  // struct node_t *clause_then;
+
 } node_t;
 
 typedef struct lvar_t {
   struct lvar_t *next;
   char *name;  // var's name
   size_t len;  // var name's length
+  size_t size;
   int offset;  // from fp
 } lvar_t;
 
@@ -252,6 +236,15 @@ lvar_t *find_lvar(token_t *tok) {
     }
   }
   return NULL;
+}
+
+size_t calc_total_lvar_size(lvar_t *var) {
+  size_t size = 0;
+  while (var) {
+    size += var->size;
+    var = var->next;
+  }
+  return size;
 }
 
 node_t *new_node() { return (node_t *)calloc(1, sizeof(node_t)); }
@@ -320,10 +313,13 @@ node_t *parse_exp(int min_bind_pow) {
       lvar->next = locals;
       lvar->name = tok->str;
       lvar->len = tok->len;
-      lvar->offset = locals ? locals->offset + 8 : 0;
+      lvar->size = 4;
+      lvar->offset = calc_total_lvar_size(locals);
       node->offset = lvar->offset;
       locals = lvar;
     }
+    node->name = tok->str;
+    node->len = tok->len;
   }
 
   // parse following opertors
@@ -395,7 +391,6 @@ node_t *parse_stmt() {
     node->kind = NODE_RETURN;
     node->rhs = parse_exp(0);
     expect(";");
-    return node;
   } else if (consume_reserved(TK_IF)) {
     node->kind = NODE_IF;
     expect("(");
@@ -405,17 +400,33 @@ node_t *parse_stmt() {
     if (consume_reserved(TK_ELSE)) {
       node->clause_else = parse_stmt();
     }
-    return node;
   } else if (consume_reserved(TK_WHILE)) {
     node->kind = NODE_WHILE;
     expect("(");
     node->cond = parse_exp(0);
     expect(")");
     node->clause_then = parse_stmt();
-    return node;
+  } else if (consume_reserved(TK_FOR)) {
+    node->kind = NODE_FOR;
+    expect("(");
+    if (!consume(";")) {
+      node->init = parse_exp(0);
+      expect(";");
+    }
+    if (!consume(";")) {
+      node->cond = parse_exp(0);
+      expect(";");
+    }
+    if (!consume(")")) {
+      node->next = parse_exp(0);
+      expect(")");
+    }
+    node->clause_then = parse_stmt();
+  } else {
+    node = parse_exp(0);
+    node->ignore = true;
+    expect(";");
   }
-  node = parse_exp(0);
-  expect(";");
   return node;
 }
 
@@ -430,6 +441,7 @@ void print_node_binop(node_t *node, char *op) {
 }
 
 void print_node(node_t *node) {
+  if (node->ignore) fprintf(stderr, "[ignore]");
   switch (node->kind) {
     case NODE_MINUS:
       fprintf(stderr, "(- ");
@@ -469,9 +481,12 @@ void print_node(node_t *node) {
     case NODE_NUM:
       fprintf(stderr, "%d", node->val);
       break;
-    case NODE_LVAR:
-      fprintf(stderr, "%c", node->offset / 4 + 'a');
+    case NODE_LVAR: {
+      char *name = calloc(node->len + 1, 1);
+      memcpy(name, node->name, node->len);
+      fprintf(stderr, "%s", name);
       break;
+    }
     case NODE_ASSIGN:
       print_node_binop(node, "=");
       break;
@@ -496,6 +511,16 @@ void print_node(node_t *node) {
       fprintf(stderr, ") ");
       print_node(node->clause_then);
       break;
+    case NODE_FOR:
+      fprintf(stderr, "for (");
+      if (node->init) print_node(node->init);
+      fprintf(stderr, "; ");
+      if (node->cond) print_node(node->cond);
+      fprintf(stderr, "; ");
+      if (node->next) print_node(node->next);
+      fprintf(stderr, ") ");
+      print_node(node->clause_then);
+      break;
     default:
       fprintf(stderr, "unimplemented printer: %d\n", node->kind);
       assert(!"unimplemented printer");
@@ -504,13 +529,13 @@ void print_node(node_t *node) {
 }
 
 void gen_pop(char *dst) {
-  printf("  lw %s, 0(sp)\n", dst);
-  printf("  addi sp, sp, +4\n");
+  printf("  lw %s, 0(sp)          # pop\n", dst);
+  printf("  addi sp, sp, +4       # ___\n");
 }
 
 void gen_push(char *src) {
-  printf("  addi sp, sp, -4\n");
-  printf("  sw %s, 0(sp)\n", src);
+  printf("  addi sp, sp, -4       # push\n");
+  printf("  sw %s, 0(sp)          # ____\n", src);
 }
 
 void gen_lval(node_t *node) {
@@ -521,14 +546,23 @@ void gen_lval(node_t *node) {
   gen_push("t0");
 }
 
+void gen_alloc_stack(lvar_t *lvar) {
+  size_t bytes = calc_total_lvar_size(lvar);
+  fprintf(stderr, "stack alloc %zd\n", bytes);
+  printf("  addi sp, sp, -%zd\n", bytes);
+}
+
+void gen_free_stack(lvar_t *lvar) {
+  size_t bytes = calc_total_lvar_size(lvar);
+  fprintf(stderr, "stack free %zd\n", bytes);
+  printf("  addi sp, sp, %zd\n", bytes);
+}
+
 void gen(node_t *node) {
-  // print_node(node);
-  // fprintf(stderr, "\n");
   if (node->kind == NODE_NUM) {
     // push
-    printf("  addi sp, sp, -4\n");
     printf("  li t0, %d\n", node->val);
-    printf("  sw t0, 0(sp)\n");
+    gen_push("t0");
     return;
   }
 
@@ -646,6 +680,8 @@ void gen(node_t *node) {
     case NODE_RETURN:
       gen(node->rhs);
       gen_pop("a0");
+      gen_free_stack(locals);
+      gen_pop("fp");
       printf("  ret\n");
       break;
     case NODE_IF:
@@ -653,31 +689,80 @@ void gen(node_t *node) {
       gen_pop("t0");
       int end_index = gen_label_index();
       int else_index = gen_label_index();
-      printf("  beqz t0, .else%d\n", else_index);
+      printf("  beqz t0, .Lelse%d\n", else_index);
       gen(node->clause_then);
-      printf("  j .ifend%d\n", end_index);
-      printf(".else%d:\n", else_index);
+      printf("  j .Lifend%d\n", end_index);
+      printf(".Lelse%d:\n", else_index);
       if (node->clause_else) {
         gen(node->clause_else);
       }
-      printf(".ifend%d:\n", end_index);
+      printf(".Lifend%d:\n", end_index);
       break;
     case NODE_WHILE: {
       int while_index = gen_label_index();
       int while_end_index = gen_label_index();
-      printf(".while%d:\n", while_index);
+      printf(".Lwhile%d:\n", while_index);
       gen(node->cond);
       gen_pop("t0");
-      printf("  beqz t0, .whileend%d\n", while_end_index);
+      printf("  beqz t0, .Lwhile_end%d\n", while_end_index);
       gen(node->clause_then);
-      printf("  j .while%d\n", while_index);
-      printf(".whileend%d:\n", while_end_index);
+      printf("  j .Lwhile%d\n", while_index);
+      printf(".Lwhile_end%d:\n", while_end_index);
+      break;
+    }
+    case NODE_FOR: {
+      printf("  # for start\n");
+      int for_index = gen_label_index();
+      if (node->init) {
+        printf("  # for init\n");
+        gen(node->init);
+      }
+      gen_pop("zero");
+      printf(".Lfor%d:\n", for_index);
+      if (node->cond) {
+        printf("  # for cond\n");
+        gen(node->cond);
+        gen_pop("t0");
+        printf("  beqz t0, .Lfor_end%d\n", for_index);
+      }
+      printf("  # for body\n");
+      gen(node->clause_then);
+      if (node->next) {
+        gen(node->cond);
+        gen_pop("zero");
+      }
+      printf("  j .Lfor%d\n", for_index);
+      printf(".Lfor_end%d:\n", for_index);
+      printf("  # for end\n");
       break;
     }
     default:
       error("gen invalid node, kind=%d", node->kind);
   }
+  if (node->ignore) {
+    gen_pop("zero");
+  }
 }
+
+void print_header() {
+  printf("  .file	\"main.c\"\n");
+  printf("  .option nopic\n");
+  printf("  .text\n");
+  printf("  .section  .rodata\n");
+  printf("  .align  4\n");
+  printf("\n");
+}
+
+void print_main_prologue() {
+  printf("  .globl  main\n");
+  printf("  .type	main, @function\n");
+  printf("main:\n");
+  gen_push("fp");  // save fp
+  gen_alloc_stack(locals);
+  printf("  mv   fp, sp\n");  // update fp
+}
+
+void print_main_epilogue() {}
 
 int main(int argc, char **argv) {
   if (argc != 2) {
@@ -687,14 +772,17 @@ int main(int argc, char **argv) {
   token = tokenize(argv[1]);
   assert(!at_eof());
 
+  node_t *nodes[1024];
+  size_t i = 0;
+  for (i = 0; i < 1024 && !at_eof(); i++) {
+    nodes[i] = parse_stmt();
+    print_node(nodes[i]);
+    fprintf(stderr, "\n");
+  }
   print_header();
   print_main_prologue();
-
-  while (!at_eof()) {
-    node_t *node = parse_stmt();
-    print_node(node);
-    fprintf(stderr, "\n");
-    gen(node);
+  for (size_t j = 0; j < i; j++) {
+    gen(nodes[j]);
   }
 
   print_main_epilogue();
