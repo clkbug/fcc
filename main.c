@@ -194,6 +194,7 @@ typedef enum {
   NODE_WHILE,
   NODE_FOR,
   NODE_BLOCK,
+  NODE_CALL,
 } node_kind_t;
 
 #define MAX_STATEMENTS 1024
@@ -310,22 +311,31 @@ node_t *parse_exp(int min_bind_pow) {
     node = parse_int();
   } else {
     token_t *tok = consume_ident();
-    node->kind = NODE_LVAR;
-    lvar_t *lvar = find_lvar(tok);
-    if (lvar) {
-      node->offset = lvar->offset;
+    if (consume("(")) {
+      // function call
+      node->kind = NODE_CALL;
+      node->name = tok->str;
+      node->len = tok->len;
+      expect(")");
     } else {
-      lvar = calloc(1, sizeof(lvar_t));
-      lvar->next = locals;
-      lvar->name = tok->str;
-      lvar->len = tok->len;
-      lvar->size = 4;
-      lvar->offset = calc_total_lvar_size(locals);
-      node->offset = lvar->offset;
-      locals = lvar;
+      // variable
+      node->kind = NODE_LVAR;
+      lvar_t *lvar = find_lvar(tok);
+      if (lvar) {
+        node->offset = lvar->offset;
+      } else {
+        lvar = calloc(1, sizeof(lvar_t));
+        lvar->next = locals;
+        lvar->name = tok->str;
+        lvar->len = tok->len;
+        lvar->size = 4;
+        lvar->offset = calc_total_lvar_size(locals);
+        node->offset = lvar->offset;
+        locals = lvar;
+      }
+      node->name = tok->str;
+      node->len = tok->len;
     }
-    node->name = tok->str;
-    node->len = tok->len;
   }
 
   // parse following opertors
@@ -540,6 +550,12 @@ void print_node(node_t *node) {
       }
       fprintf(stderr, "}");
       break;
+    case NODE_CALL: {
+      char *name = calloc(node->len + 1, 1);
+      memcpy(name, node->name, node->len);
+      fprintf(stderr, "%s()", name);
+      break;
+    }
     default:
       fprintf(stderr, "unimplemented printer: %d\n", node->kind);
       assert(!"unimplemented printer");
@@ -786,6 +802,13 @@ void gen(node_t *node) {
         gen(node->statements[i]);
       }
       break;
+    case NODE_CALL: {
+      char *name = calloc(node->len + 1, 1);
+      memcpy(name, node->name, node->len);
+      printf("%scall %s\n", indent, name);
+      gen_push("a0");
+      break;
+    }
     default:
       error("gen invalid node, kind=%d", node->kind);
   }
