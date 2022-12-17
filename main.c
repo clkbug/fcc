@@ -130,7 +130,8 @@ token_t *tokenize(char *p) {
       }
     }
     if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '>' ||
-        *p == '<' || *p == '(' || *p == ')' || *p == '=' || *p == ';') {
+        *p == '<' || *p == '(' || *p == ')' || *p == '=' || *p == ';' ||
+        *p == '{' || *p == '}') {
       cur = new_token(TK_RESERVED, cur, p, 1);
       p++;
       continue;
@@ -192,8 +193,10 @@ typedef enum {
   NODE_IF,
   NODE_WHILE,
   NODE_FOR,
+  NODE_BLOCK,
 } node_kind_t;
 
+#define MAX_STATEMENTS 1024
 typedef struct node_t {
   node_kind_t kind;
   struct node_t *lhs;
@@ -217,6 +220,9 @@ typedef struct node_t {
   struct node_t *next;
   // struct node_t *clause_then;
 
+  // for 'block'
+  struct node_t *statements[MAX_STATEMENTS];
+  size_t statement_count;
 } node_t;
 
 typedef struct lvar_t {
@@ -422,6 +428,12 @@ node_t *parse_stmt() {
       expect(")");
     }
     node->clause_then = parse_stmt();
+  } else if (consume("{")) {
+    node->kind = NODE_BLOCK;
+    for (size_t i = 0; i < MAX_STATEMENTS && !consume("}"); i++) {
+      node->statements[i] = parse_stmt();
+      node->statement_count++;
+    }
   } else {
     node = parse_exp(0);
     node->ignore = true;
@@ -520,6 +532,13 @@ void print_node(node_t *node) {
       if (node->next) print_node(node->next);
       fprintf(stderr, ") ");
       print_node(node->clause_then);
+      break;
+    case NODE_BLOCK:
+      fprintf(stderr, "{ ");
+      for (size_t i = 0; i < node->statement_count; i++) {
+        print_node(node->statements[i]);
+      }
+      fprintf(stderr, "}");
       break;
     default:
       fprintf(stderr, "unimplemented printer: %d\n", node->kind);
@@ -762,6 +781,11 @@ void gen(node_t *node) {
       printf("%s# for end\n", indent);
       break;
     }
+    case NODE_BLOCK:
+      for (size_t i = 0; i < node->statement_count; i++) {
+        gen(node->statements[i]);
+      }
+      break;
     default:
       error("gen invalid node, kind=%d", node->kind);
   }
