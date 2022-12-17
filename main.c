@@ -528,41 +528,64 @@ void print_node(node_t *node) {
   }
 }
 
+char indent[1024];
+int depth = 0;
+
+void update_depth() {
+  for (int i = 0; i < 4 * depth; i += 4) {
+    indent[i] = indent[i + 1] = indent[i + 2] = indent[i + 3] = ' ';
+  }
+  indent[4 * depth] = '\0';
+}
+void inc_depth() {
+  depth++;
+  update_depth();
+}
+void dec_depth() {
+  depth--;
+  update_depth();
+}
+void print_indent() { printf("%s", indent); }
+
 void gen_pop(char *dst) {
-  printf("  lw %s, 0(sp)          # pop\n", dst);
-  printf("  addi sp, sp, +4       # ___\n");
+  printf("%slw %s, 0(sp)          # pop\n", indent, dst);
+  printf("%saddi sp, sp, +4       # ___\n", indent);
 }
 
 void gen_push(char *src) {
-  printf("  addi sp, sp, -4       # push\n");
-  printf("  sw %s, 0(sp)          # ____\n", src);
+  printf("%saddi sp, sp, -4       # push\n", indent);
+  printf("%ssw %s, 0(sp)          # ____\n", indent, src);
 }
 
 void gen_lval(node_t *node) {
   if (node->kind != NODE_LVAR) {
     error("左辺値が左辺値ではない！ kind=%d", node->kind);
   }
-  printf("  addi t0, fp, %d\n", node->offset);
+  printf("%saddi t0, fp, %d\n", indent, node->offset);
   gen_push("t0");
 }
 
 void gen_alloc_stack(lvar_t *lvar) {
   size_t bytes = calc_total_lvar_size(lvar);
   fprintf(stderr, "stack alloc %zd\n", bytes);
-  printf("  addi sp, sp, -%zd\n", bytes);
+  printf("%saddi sp, sp, -%zd\n", indent, bytes);
 }
 
 void gen_free_stack(lvar_t *lvar) {
   size_t bytes = calc_total_lvar_size(lvar);
   fprintf(stderr, "stack free %zd\n", bytes);
-  printf("  addi sp, sp, %zd\n", bytes);
+  printf("%saddi sp, sp, %zd\n", indent, bytes);
 }
 
 void gen(node_t *node) {
+  inc_depth();
+  print_node(node);
+  fprintf(stderr, "\n");
   if (node->kind == NODE_NUM) {
     // push
-    printf("  li t0, %d\n", node->val);
+    printf("%sli t0, %d\n", indent, node->val);
     gen_push("t0");
+    dec_depth();
     return;
   }
 
@@ -572,7 +595,7 @@ void gen(node_t *node) {
       gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
-      printf("  add t0, t1, t0\n");
+      printf("%sadd t0, t1, t0\n", indent);
       gen_push("t0");
       break;
     case NODE_SUB:
@@ -580,7 +603,7 @@ void gen(node_t *node) {
       gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
-      printf("  sub t0, t1, t0\n");
+      printf("%ssub t0, t1, t0\n", indent);
       gen_push("t0");
       break;
     case NODE_MUL:
@@ -588,7 +611,7 @@ void gen(node_t *node) {
       gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
-      printf("  mul t0, t1, t0\n");
+      printf("%smul t0, t1, t0\n", indent);
       gen_push("t0");
       break;
     case NODE_DIV:
@@ -596,7 +619,7 @@ void gen(node_t *node) {
       gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
-      printf("  div t0, t1, t0\n");
+      printf("%sdiv t0, t1, t0\n", indent);
       gen_push("t0");
       break;
     case NODE_LT:
@@ -604,7 +627,7 @@ void gen(node_t *node) {
       gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
-      printf("  slt t0, t1, t0\n");
+      printf("%sslt t0, t1, t0\n", indent);
       gen_push("t0");
       break;
     case NODE_LE:
@@ -612,12 +635,13 @@ void gen(node_t *node) {
       gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
-      printf("  slt t2, t1, t0\n");  // t2 <- t1 < t0
-      printf("  sub t3, t0, t1\n");  // t3 <- t0 - t1
-      printf("  snez t3, t3\n");     // t3 <- t3 != 0 : a == b -> 0, a != b -> 1
-      printf("  neg  t3, t3\n");     // t3 <- a == b -> 0, a != b -> -1
-      printf("  addi t3, t3, 1\n");  // t3 <- a == b -> 1, a != b -> 0
-      printf("  or   t0, t2, t3\n");
+      printf("%sslt t2, t1, t0\n", indent);  // t2 <- t1 < t0
+      printf("%ssub t3, t0, t1\n", indent);  // t3 <- t0 - t1
+      printf("%ssnez t3, t3\n",
+             indent);  // t3 <- t3 != 0 : a == b -> 0, a != b -> 1
+      printf("%sneg  t3, t3\n", indent);     // t3 <- a == b -> 0, a != b -> -1
+      printf("%saddi t3, t3, 1\n", indent);  // t3 <- a == b -> 1, a != b -> 0
+      printf("%sor   t0, t2, t3\n", indent);
       gen_push("t0");
       break;
     case NODE_GT:
@@ -625,7 +649,7 @@ void gen(node_t *node) {
       gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
-      printf("  sgt t0, t1, t0\n");
+      printf("%ssgt t0, t1, t0\n", indent);
       gen_push("t0");
       break;
     case NODE_GE:
@@ -633,12 +657,13 @@ void gen(node_t *node) {
       gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
-      printf("  slt t2, t0, t1\n");  // t2 <- t0 < t1
-      printf("  sub t3, t1, t0\n");  // t3 <- t1 - t0
-      printf("  snez t3, t3\n");     // t3 <- t3 != 0 : a == b -> 0, a != b -> 1
-      printf("  neg  t3, t3\n");     // t3 <- a == b -> 0, a != b -> -1
-      printf("  addi t3, t3, 1\n");  // t3 <- a == b -> 1, a != b -> 0
-      printf("  or   t0, t2, t3\n");
+      printf("%sslt t2, t0, t1\n", indent);  // t2 <- t0 < t1
+      printf("%ssub t3, t1, t0\n", indent);  // t3 <- t1 - t0
+      printf("%ssnez t3, t3\n",
+             indent);  // t3 <- t3 != 0 : a == b -> 0, a != b -> 1
+      printf("%sneg  t3, t3\n", indent);     // t3 <- a == b -> 0, a != b -> -1
+      printf("%saddi t3, t3, 1\n", indent);  // t3 <- a == b -> 1, a != b -> 0
+      printf("%sor   t0, t2, t3\n", indent);
       gen_push("t0");
       break;
     case NODE_EQ:
@@ -646,11 +671,12 @@ void gen(node_t *node) {
       gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
-      printf("  slt t2, t1, t0\n");  // a < b
-      printf("  slt t3, t0, t1\n");  // a > b
-      printf("  or  t1, t2, t3\n");  // (a < b) | (a > b) : a==b-> 0, a!=b->1
-      printf("  li  t0, 1\n");
-      printf("  sub t0, t0, t1\n");
+      printf("%sslt t2, t1, t0\n", indent);  // a < b
+      printf("%sslt t3, t0, t1\n", indent);  // a > b
+      printf("%sor  t1, t2, t3\n",
+             indent);  // (a < b) | (a > b) : a==b-> 0, a!=b->1
+      printf("%sli  t0, 1\n", indent);
+      printf("%ssub t0, t0, t1\n", indent);
       gen_push("t0");
       break;
     case NODE_NEQ:
@@ -658,14 +684,14 @@ void gen(node_t *node) {
       gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
-      printf("  sub t0, t1, t0\n");
-      printf("  snez t0, t0\n");
+      printf("%ssub t0, t1, t0\n", indent);
+      printf("%ssnez t0, t0\n", indent);
       gen_push("t0");
       break;
     case NODE_LVAR:
       gen_lval(node);
       gen_pop("t0");
-      printf("  lw t0, 0(t0)\n");
+      printf("%slw t0, 0(t0)\n", indent);
       gen_push("t0");
       break;
     case NODE_ASSIGN:
@@ -674,7 +700,7 @@ void gen(node_t *node) {
       gen_lval(node->lhs);
       gen_pop("t1");  // address
       gen_pop("t0");  // value
-      printf("  sw t0, 0(t1)\n");
+      printf("%ssw t0, 0(t1)\n", indent);
       gen_push("t0");  // value again
       break;
     case NODE_RETURN:
@@ -682,16 +708,16 @@ void gen(node_t *node) {
       gen_pop("a0");
       gen_free_stack(locals);
       gen_pop("fp");
-      printf("  ret\n");
+      printf("%sret\n", indent);
       break;
     case NODE_IF:
       gen(node->cond);
       gen_pop("t0");
       int end_index = gen_label_index();
       int else_index = gen_label_index();
-      printf("  beqz t0, .Lelse%d\n", else_index);
+      printf("%sbeqz t0, .Lelse%d\n", indent, else_index);
       gen(node->clause_then);
-      printf("  j .Lifend%d\n", end_index);
+      printf("%sj .Lifend%d\n", indent, end_index);
       printf(".Lelse%d:\n", else_index);
       if (node->clause_else) {
         gen(node->clause_else);
@@ -704,36 +730,36 @@ void gen(node_t *node) {
       printf(".Lwhile%d:\n", while_index);
       gen(node->cond);
       gen_pop("t0");
-      printf("  beqz t0, .Lwhile_end%d\n", while_end_index);
+      printf("%sbeqz t0, .Lwhile_end%d\n", indent, while_end_index);
       gen(node->clause_then);
-      printf("  j .Lwhile%d\n", while_index);
+      printf("%sj .Lwhile%d\n", indent, while_index);
       printf(".Lwhile_end%d:\n", while_end_index);
       break;
     }
     case NODE_FOR: {
-      printf("  # for start\n");
+      printf("%s# for start\n", indent);
       int for_index = gen_label_index();
       if (node->init) {
-        printf("  # for init\n");
+        printf("%s# for init\n", indent);
         gen(node->init);
       }
       gen_pop("zero");
       printf(".Lfor%d:\n", for_index);
       if (node->cond) {
-        printf("  # for cond\n");
+        printf("%s# for cond\n", indent);
         gen(node->cond);
         gen_pop("t0");
-        printf("  beqz t0, .Lfor_end%d\n", for_index);
+        printf("%sbeqz t0, .Lfor_end%d\n", indent, for_index);
       }
-      printf("  # for body\n");
+      printf("%s# for body\n", indent);
       gen(node->clause_then);
       if (node->next) {
-        gen(node->cond);
+        gen(node->next);
         gen_pop("zero");
       }
-      printf("  j .Lfor%d\n", for_index);
+      printf("%sj .Lfor%d\n", indent, for_index);
       printf(".Lfor_end%d:\n", for_index);
-      printf("  # for end\n");
+      printf("%s# for end\n", indent);
       break;
     }
     default:
@@ -742,6 +768,7 @@ void gen(node_t *node) {
   if (node->ignore) {
     gen_pop("zero");
   }
+  dec_depth();
 }
 
 void print_header() {
