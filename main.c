@@ -131,7 +131,7 @@ token_t *tokenize(char *p) {
     }
     if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '>' ||
         *p == '<' || *p == '(' || *p == ')' || *p == '=' || *p == ';' ||
-        *p == '{' || *p == '}') {
+        *p == '{' || *p == '}' || *p == ',') {
       cur = new_token(TK_RESERVED, cur, p, 1);
       p++;
       continue;
@@ -198,6 +198,7 @@ typedef enum {
 } node_kind_t;
 
 #define MAX_STATEMENTS 1024
+#define MAX_ARGS 8
 typedef struct node_t {
   node_kind_t kind;
   struct node_t *lhs;
@@ -224,6 +225,10 @@ typedef struct node_t {
   // for 'block'
   struct node_t *statements[MAX_STATEMENTS];
   size_t statement_count;
+
+  // for 'call'
+  struct node_t *args[MAX_ARGS];
+  size_t args_count;
 } node_t;
 
 typedef struct lvar_t {
@@ -316,7 +321,18 @@ node_t *parse_exp(int min_bind_pow) {
       node->kind = NODE_CALL;
       node->name = tok->str;
       node->len = tok->len;
-      expect(")");
+      for (size_t i = 0; i < MAX_ARGS; i++) {
+        if (consume(")")) {
+          break;
+        }
+        if (0 < i) {
+          if (!consume(",")) {
+            error("call f(x y)? needs comma?\n");
+          }
+        }
+        node->args[i] = parse_exp(0);
+        node->args_count = i + 1;
+      }
     } else {
       // variable
       node->kind = NODE_LVAR;
@@ -553,7 +569,14 @@ void print_node(node_t *node) {
     case NODE_CALL: {
       char *name = calloc(node->len + 1, 1);
       memcpy(name, node->name, node->len);
-      fprintf(stderr, "%s()", name);
+      fprintf(stderr, "%s(", name);
+      for (size_t i = 0; i < node->args_count; i++) {
+        if (0 < i) {
+          fprintf(stderr, ", ");
+        }
+        print_node(node->args[i]);
+      }
+      fprintf(stderr, ")");
       break;
     }
     default:
@@ -806,6 +829,15 @@ void gen(node_t *node) {
       char *name = calloc(node->len + 1, 1);
       memcpy(name, node->name, node->len);
 
+      for (int i = 0; i < node->args_count; i++) {
+        gen(node->args[node->args_count - 1 - i]);
+      }
+      for (int i = 0; i < node->args_count; i++) {
+        char s[3] = "a0";
+        s[1] = 48 + i;
+        gen_pop(s);
+      }
+
       // stack aligned 16
       gen_push("ra");
       printf("%sandi s1, sp, 0xF\n", indent);  // s1 = SP & 0xF
@@ -813,7 +845,6 @@ void gen(node_t *node) {
       printf("%scall %s\n", indent, name);
       printf("%sadd  sp, sp, s1\n", indent);  // recover SP
       gen_pop("ra");
-      // printf("%sli   a0, 1\n", indent);
       gen_push("a0");
       break;
     }
