@@ -231,6 +231,19 @@ typedef struct node_t {
   size_t args_count;
 } node_t;
 
+typedef struct declaration_t {
+  char *func_name;
+  size_t func_name_length;
+
+  char **func_arg_name[MAX_ARGS];
+  int func_arg_leng[MAX_ARGS];
+  size_t func_arg_count;
+
+  node_t *func_statements[MAX_STATEMENTS];
+  size_t func_statement_count;
+
+} declaration_t;
+
 typedef struct lvar_t {
   struct lvar_t *next;
   char *name;  // var's name
