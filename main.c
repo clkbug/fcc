@@ -63,7 +63,7 @@ bool is_int() { return token->kind == TK_INT; }
 void expect(char *op) {
   if (token->kind != TK_RESERVED || strlen(op) != token->len ||
       memcmp(token->str, op, token->len)) {
-    error("not '%c', got '%s'\n", op, token->str);
+    error("not '%s', got '%s'\n", op, token->str);
   }
   token = token->next;
 }
@@ -805,7 +805,15 @@ void gen(node_t *node) {
     case NODE_CALL: {
       char *name = calloc(node->len + 1, 1);
       memcpy(name, node->name, node->len);
+
+      // stack aligned 16
+      gen_push("ra");
+      printf("%sandi s1, sp, 0xF\n", indent);  // s1 = SP & 0xF
+      printf("%ssub  sp, sp, s1\n", indent);   // align SP
       printf("%scall %s\n", indent, name);
+      printf("%sadd  sp, sp, s1\n", indent);  // recover SP
+      gen_pop("ra");
+      // printf("%sli   a0, 1\n", indent);
       gen_push("a0");
       break;
     }
