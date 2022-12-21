@@ -108,6 +108,10 @@ assert 10 "main() {a =plus(1,2); b= plus(3,4); return plus(a, b);}"
 assert 1 "myf1() { return 1; } main() {return myf1();}"
 assert 100 "myf100() { return 100; } main() {return myf100();}"
 assert 101 "myf1() { return 1; } myf100() { return 100; } main() {return myf1() + myf100();}"
+assert 100 "my_id(a) { return a; } main() {return my_id(100); }"
 assert 2 "my_inc(a) { return a+1; } main() { return my_inc(1); }"
+assert 9 "my_inc(a) { return a+1; } main() { return my_inc(1) + my_inc(2) + my_inc(3); }"
+assert 3 "my_plus(a, b) { return a + b; } main () { return my_plus(1, 2); }"
+assert 36 "my_plus(a, b, c, d) { return a + b + d + c; } main () { return my_plus(1, 2, 3, 4) + my_plus(5,6,7,8); }"
 
 echo OK

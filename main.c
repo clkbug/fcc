@@ -235,8 +235,7 @@ typedef struct declaration_t {
   char *func_name;
   size_t func_name_length;
 
-  char *func_arg_name[MAX_ARGS];
-  int func_arg_length[MAX_ARGS];
+  token_t *func_arg[MAX_ARGS];
   size_t func_arg_count;
 
   node_t *func_statements[MAX_STATEMENTS];
@@ -515,8 +514,7 @@ declaration_t *parse_declaration() {
       }
     }
     tok = consume_ident();
-    d->func_arg_name[i] = tok->str;
-    d->func_arg_length[i] = tok->len;
+    d->func_arg[i] = tok;
     d->func_arg_count = i + 1;
   }
 
@@ -664,7 +662,7 @@ void print_declaration(declaration_t *dec) {
     if (0 < i) {
       fprintf(stderr, ", ");
     }
-    print_str_len(stderr, dec->func_arg_name[i], dec->func_arg_length[i]);
+    print_str_len(stderr, dec->func_arg[i]->str, dec->func_arg[i]->len);
   }
   fprintf(stderr, ") {\n");
   for (size_t i = 0; i < dec->func_statement_count; i++) {
@@ -952,6 +950,21 @@ void print_func_prologue(declaration_t *dec) {
   printf("  .type	");
   print_str_len(stdout, dec->func_name, dec->func_name_length);
   printf(", @function\n");
+  print_str_len(stdout, dec->func_name, dec->func_name_length);
+  printf(":\n");
+  gen_push("fp");  // save fp
+
+  gen_alloc_stack(locals);
+  printf("%smv   fp, sp\n", indent);  // update fp
+
+  // push arguments
+  for (size_t i = 0; i < dec->func_arg_count; i++) {
+    char reg[] = "a0";
+    lvar_t *var = find_lvar(dec->func_arg[i]);
+    reg[1] += i;
+    fprintf(stderr, "push arg %s\n", reg);
+    printf("%ssw %s, %d(fp)\n", indent, reg, var->offset);
+  }
 }
 
 void print_func_epilogue(declaration_t *dec) {}
@@ -960,11 +973,6 @@ void gen_declaration(declaration_t *dec) {
   depth = 1;
   update_indent();
   print_func_prologue(dec);
-  print_str_len(stdout, dec->func_name, dec->func_name_length);
-  printf(":\n");
-  gen_push("fp");  // save fp
-  gen_alloc_stack(locals);
-  printf("%smv   fp, sp\n", indent);  // update fp
   for (size_t i = 0; i < dec->func_statement_count; i++) {
     gen(dec->func_statements[i]);
   }
