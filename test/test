@@ -113,5 +113,11 @@ assert 2 "my_inc(a) { return a+1; } main() { return my_inc(1); }"
 assert 9 "my_inc(a) { return a+1; } main() { return my_inc(1) + my_inc(2) + my_inc(3); }"
 assert 3 "my_plus(a, b) { return a + b; } main () { return my_plus(1, 2); }"
 assert 36 "my_plus(a, b, c, d) { return a + b + d + c; } main () { return my_plus(1, 2, 3, 4) + my_plus(5,6,7,8); }"
-
+assert 55 "my_sum(n) { s=0; for(i=0;i<=n;i=i+1) { s = s + i; } return s; } main () { return my_sum(10); }"
+assert 100 "my_recur(n) { if(n==0) { return 100; } else { return my_recur(n-1); } } main () {return my_recur(0); }"
+assert 100 "my_recur(n) { if(n==0) { return 100; } else { return my_recur(n-1); } } main () {return my_recur(1); }"
+assert 100 "my_recur(n) { if(n==0) { return 100; } else { return my_recur(n-1); } } main () {return my_recur(2); }"
+assert 1 "my_fact(n) { if(n==0) { return 1; } else { return n * my_fact(n-1); } } main () {return my_fact(0); }"
+assert 1 "my_fact(n) { if(n==0) { return 1; } else { return n * my_fact(n-1); } } main () {return my_fact(1); }"
+assert 120 "my_fact(n) { if(n==0) { return 1; } else { return n * my_fact(n-1); } } main () {return my_fact(5); }"
 echo OK

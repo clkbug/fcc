@@ -926,10 +926,12 @@ void gen(node_t *node) {
 
       // stack aligned 16
       gen_push("ra");
+      gen_push("s1");
       printf("%sandi s1, sp, 0xF\n", indent);  // s1 = SP & 0xF
       printf("%ssub  sp, sp, s1\n", indent);   // align SP
       printf("%scall %s\n", indent, name);
       printf("%sadd  sp, sp, s1\n", indent);  // recover SP
+      gen_pop("s1");
       gen_pop("ra");
       gen_push("a0");
       break;
