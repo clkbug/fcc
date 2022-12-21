@@ -235,14 +235,19 @@ typedef struct declaration_t {
   char *func_name;
   size_t func_name_length;
 
-  char **func_arg_name[MAX_ARGS];
-  int func_arg_leng[MAX_ARGS];
+  char *func_arg_name[MAX_ARGS];
+  int func_arg_length[MAX_ARGS];
   size_t func_arg_count;
 
   node_t *func_statements[MAX_STATEMENTS];
   size_t func_statement_count;
 
 } declaration_t;
+
+declaration_t *new_declaration() {
+  declaration_t *d = calloc(1, sizeof(declaration_t));
+  return d;
+}
 
 typedef struct lvar_t {
   struct lvar_t *next;
@@ -270,6 +275,16 @@ size_t calc_total_lvar_size(lvar_t *var) {
     var = var->next;
   }
   return size;
+}
+
+void add_lvar(char *name, size_t len) {
+  lvar_t *lvar = calloc(1, sizeof(lvar_t));
+  lvar->next = locals;
+  lvar->name = name;
+  lvar->len = len;
+  lvar->size = 4;
+  lvar->offset = calc_total_lvar_size(locals);
+  locals = lvar;
 }
 
 node_t *new_node() { return (node_t *)calloc(1, sizeof(node_t)); }
@@ -353,14 +368,8 @@ node_t *parse_exp(int min_bind_pow) {
       if (lvar) {
         node->offset = lvar->offset;
       } else {
-        lvar = calloc(1, sizeof(lvar_t));
-        lvar->next = locals;
-        lvar->name = tok->str;
-        lvar->len = tok->len;
-        lvar->size = 4;
-        lvar->offset = calc_total_lvar_size(locals);
-        node->offset = lvar->offset;
-        locals = lvar;
+        add_lvar(tok->str, tok->len);
+        node->offset = locals->offset;
       }
       node->name = tok->str;
       node->len = tok->len;
@@ -481,6 +490,58 @@ node_t *parse_stmt() {
   return node;
 }
 
+declaration_t *parse_declaration() {
+  declaration_t *d = new_declaration();
+
+  // parse function name
+  token_t *tok = consume_ident();
+  if (tok->kind != TK_IDENT) {
+    error("failed to parse declaration: token kind %d", token->kind);
+  }
+
+  d->func_name = tok->str;
+  d->func_name_length = tok->len;
+
+  if (!consume("(")) {
+    error("failed to parse declaration: '(' expected");
+  }
+  for (size_t i = 0; i < MAX_ARGS; i++) {
+    if (consume(")")) {
+      break;
+    }
+    if (0 < i) {
+      if (!consume(",")) {
+        error("call f(x y)? needs comma?\n");
+      }
+    }
+    tok = consume_ident();
+    d->func_arg_name[i] = tok->str;
+    d->func_arg_length[i] = tok->len;
+    d->func_arg_count = i + 1;
+  }
+
+  // body
+  if (!consume("{")) {
+    error("failed to parse declaration: '{' expected");
+  }
+  for (size_t i = 0; i < MAX_STATEMENTS; i++) {
+    if (consume("}")) {
+      break;
+    }
+    d->func_statements[i] = parse_stmt();
+    d->func_statement_count = i + 1;
+  }
+
+  return d;
+}
+
+void print_str_len(FILE *fp, char *str, size_t len) {
+  char *name = calloc(len + 1, 1);
+  memcpy(name, str, len);
+  fprintf(fp, "%s", name);
+  free(name);
+}
+
 void print_node(node_t *node);
 
 void print_node_binop(node_t *node, char *op) {
@@ -533,9 +594,7 @@ void print_node(node_t *node) {
       fprintf(stderr, "%d", node->val);
       break;
     case NODE_LVAR: {
-      char *name = calloc(node->len + 1, 1);
-      memcpy(name, node->name, node->len);
-      fprintf(stderr, "%s", name);
+      print_str_len(stderr, node->name, node->len);
       break;
     }
     case NODE_ASSIGN:
@@ -580,9 +639,8 @@ void print_node(node_t *node) {
       fprintf(stderr, "}");
       break;
     case NODE_CALL: {
-      char *name = calloc(node->len + 1, 1);
-      memcpy(name, node->name, node->len);
-      fprintf(stderr, "%s(", name);
+      print_str_len(stderr, node->name, node->len);
+      fprintf(stderr, "(");
       for (size_t i = 0; i < node->args_count; i++) {
         if (0 < i) {
           fprintf(stderr, ", ");
@@ -599,10 +657,27 @@ void print_node(node_t *node) {
   }
 }
 
-char indent[1024];
-int depth = 0;
+void print_declaration(declaration_t *dec) {
+  print_str_len(stderr, dec->func_name, dec->func_name_length);
+  fprintf(stderr, "(");
+  for (size_t i = 0; i < dec->func_arg_count; i++) {
+    if (0 < i) {
+      fprintf(stderr, ", ");
+    }
+    print_str_len(stderr, dec->func_arg_name[i], dec->func_arg_length[i]);
+  }
+  fprintf(stderr, ") {\n");
+  for (size_t i = 0; i < dec->func_statement_count; i++) {
+    print_node(dec->func_statements[i]);
+    fprintf(stderr, ";\n");
+  }
+  fprintf(stderr, "}\n");
+}
 
-void update_depth() {
+char indent[1024];
+int depth;
+
+void update_indent() {
   for (int i = 0; i < 4 * depth; i += 4) {
     indent[i] = indent[i + 1] = indent[i + 2] = indent[i + 3] = ' ';
   }
@@ -610,11 +685,11 @@ void update_depth() {
 }
 void inc_depth() {
   depth++;
-  update_depth();
+  update_indent();
 }
 void dec_depth() {
   depth--;
-  update_depth();
+  update_indent();
 }
 void print_indent() { printf("%s", indent); }
 
@@ -870,6 +945,32 @@ void gen(node_t *node) {
   dec_depth();
 }
 
+void print_func_prologue(declaration_t *dec) {
+  printf("  .globl  ");
+  print_str_len(stdout, dec->func_name, dec->func_name_length);
+  printf("\n");
+  printf("  .type	");
+  print_str_len(stdout, dec->func_name, dec->func_name_length);
+  printf(", @function\n");
+}
+
+void print_func_epilogue(declaration_t *dec) {}
+
+void gen_declaration(declaration_t *dec) {
+  depth = 1;
+  update_indent();
+  print_func_prologue(dec);
+  print_str_len(stdout, dec->func_name, dec->func_name_length);
+  printf(":\n");
+  gen_push("fp");  // save fp
+  gen_alloc_stack(locals);
+  printf("%smv   fp, sp\n", indent);  // update fp
+  for (size_t i = 0; i < dec->func_statement_count; i++) {
+    gen(dec->func_statements[i]);
+  }
+  print_func_epilogue(dec);
+}
+
 void print_header() {
   printf("  .file	\"main.c\"\n");
   printf("  .option nopic\n");
@@ -879,17 +980,6 @@ void print_header() {
   printf("\n");
 }
 
-void print_main_prologue() {
-  printf("  .globl  main\n");
-  printf("  .type	main, @function\n");
-  printf("main:\n");
-  gen_push("fp");  // save fp
-  gen_alloc_stack(locals);
-  printf("  mv   fp, sp\n");  // update fp
-}
-
-void print_main_epilogue() {}
-
 int main(int argc, char **argv) {
   if (argc != 2) {
     error("argc = %d\n", argc);
@@ -898,20 +988,12 @@ int main(int argc, char **argv) {
   token = tokenize(argv[1]);
   assert(!at_eof());
 
-  node_t *nodes[1024];
-  size_t i = 0;
-  for (i = 0; i < 1024 && !at_eof(); i++) {
-    nodes[i] = parse_stmt();
-    print_node(nodes[i]);
-    fprintf(stderr, "\n");
-  }
   print_header();
-  print_main_prologue();
-  for (size_t j = 0; j < i; j++) {
-    gen(nodes[j]);
+  while (!at_eof()) {
+    declaration_t *dec = parse_declaration();
+    print_declaration(dec);
+    gen_declaration(dec);
   }
-
-  print_main_epilogue();
 
   return 0;
 }
