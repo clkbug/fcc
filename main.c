@@ -131,7 +131,7 @@ token_t *tokenize(char *p) {
     }
     if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '>' ||
         *p == '<' || *p == '(' || *p == ')' || *p == '=' || *p == ';' ||
-        *p == '{' || *p == '}' || *p == ',') {
+        *p == '{' || *p == '}' || *p == ',' || *p == '&') {
       cur = new_token(TK_RESERVED, cur, p, 1);
       p++;
       continue;
@@ -195,6 +195,8 @@ typedef enum {
   NODE_FOR,
   NODE_BLOCK,
   NODE_CALL,
+  NODE_ADDR,
+  NODE_DEREF,
 } node_kind_t;
 
 #define MAX_STATEMENTS 1024
@@ -298,6 +300,8 @@ node_t *parse_int() {
 // binding power
 // high is prior
 const int NEG_RIGHT_BIND_POW = 151;
+const int ADDR_RIGHT_BIND_POW = 151;
+const int DEREF_RIGHT_BIND_POW = 151;
 const int MUL_LEFT_BINDING_POWER = 130;
 const int MUL_RIGHT_BINDING_POWER = 131;
 const int DIV_LEFT_BINDING_POWER = 130;
@@ -335,6 +339,14 @@ node_t *parse_exp(int min_bind_pow) {
   if (consume("-")) {
     node_t *follower = parse_exp(NEG_RIGHT_BIND_POW);
     node->kind = NODE_MINUS;
+    node->rhs = follower;
+  } else if (consume("&")) {
+    node_t *follower = parse_exp(ADDR_RIGHT_BIND_POW);
+    node->kind = NODE_ADDR;
+    node->rhs = follower;
+  } else if (consume("*")) {
+    node_t *follower = parse_exp(DEREF_RIGHT_BIND_POW);
+    node->kind = NODE_DEREF;
     node->rhs = follower;
   } else if (consume("(")) {
     node = parse_exp(0);
@@ -648,6 +660,14 @@ void print_node(node_t *node) {
       fprintf(stderr, ")");
       break;
     }
+    case NODE_ADDR:
+      fprintf(stderr, "&");
+      print_node(node->rhs);
+      break;
+    case NODE_DEREF:
+      fprintf(stderr, "*");
+      print_node(node->rhs);
+      break;
     default:
       fprintf(stderr, "unimplemented printer: %d\n", node->kind);
       assert(!"unimplemented printer");
@@ -936,6 +956,15 @@ void gen(node_t *node) {
       gen_push("a0");
       break;
     }
+    case NODE_ADDR:
+      gen_lval(node->rhs);
+      break;
+    case NODE_DEREF:
+      gen(node->rhs);
+      gen_pop("t0");
+      printf("%slw t0, 0(t0)\n", indent);
+      gen_push("t0");
+      break;
     default:
       error("gen invalid node, kind=%d", node->kind);
   }
