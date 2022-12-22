@@ -546,6 +546,9 @@ declaration_t *parse_declaration() {
         error("call f(x y)? needs comma?\n");
       }
     }
+    if (!consume_reserved(TK_TYPE)) {
+      error("expected TK_TYPE in function's parameters");
+    }
     tok = consume_ident();
     add_lvar(tok->str, tok->len);
     d->func_arg[i] = tok;
