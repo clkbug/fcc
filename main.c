@@ -28,6 +28,7 @@ typedef enum {
   TK_FOR,
   TK_IDENT,
   TK_INT,
+  TK_TYPE,
   TK_EOF,
 } token_kind_t;
 
@@ -155,6 +156,10 @@ token_t *tokenize(char *p) {
         cur->kind = TK_WHILE;
       } else if (strncmp(cur->str, "for", 3) == 0) {
         cur->kind = TK_FOR;
+      } else if (strncmp(cur->str, "int", 3) == 0) {
+        cur->kind = TK_TYPE;
+      } else if (strncmp(cur->str, "size_t", 6) == 0) {
+        cur->kind = TK_TYPE;
       }
 
       continue;
@@ -173,8 +178,14 @@ token_t *tokenize(char *p) {
   return head.next;
 }
 
+typedef struct type_t {
+  enum { TYPE_INT, TYPE_POITNER } ty;
+  struct type_t *ptr_to;
+} type_t;
+
 typedef enum {
   NODE_INVALID,
+  NODE_VAR_DEC,
   NODE_MINUS,
   NODE_ADD,
   NODE_SUB,
@@ -256,6 +267,7 @@ typedef struct lvar_t {
   size_t len;  // var name's length
   size_t size;
   int offset;  // from fp
+  type_t type;
 } lvar_t;
 
 lvar_t *locals;
@@ -379,8 +391,7 @@ node_t *parse_exp(int min_bind_pow) {
       if (lvar) {
         node->offset = lvar->offset;
       } else {
-        add_lvar(tok->str, tok->len);
-        node->offset = locals->offset;
+        error("%s not declared", tok->str);
       }
       node->name = tok->str;
       node->len = tok->len;
@@ -452,7 +463,17 @@ node_t *parse_exp(int min_bind_pow) {
 
 node_t *parse_stmt() {
   node_t *node = new_node();
-  if (consume_reserved(TK_RETURN)) {
+  if (consume_reserved(TK_TYPE)) {
+    node->kind = NODE_VAR_DEC;
+    token_t *tok = consume_ident();
+    if (tok == NULL) {
+      error("IDENT expected after TK_TYPE!");
+    }
+    node->name = tok->str;
+    node->len = tok->len;
+    add_lvar(tok->str, tok->len);
+    expect(";");
+  } else if (consume_reserved(TK_RETURN)) {
     node->kind = NODE_RETURN;
     node->rhs = parse_exp(0);
     expect(";");
@@ -526,6 +547,7 @@ declaration_t *parse_declaration() {
       }
     }
     tok = consume_ident();
+    add_lvar(tok->str, tok->len);
     d->func_arg[i] = tok;
     d->func_arg_count = i + 1;
   }
@@ -668,6 +690,11 @@ void print_node(node_t *node) {
       fprintf(stderr, "*");
       print_node(node->rhs);
       break;
+    case NODE_VAR_DEC:
+      fprintf(stderr, "int ");
+      print_str_len(stderr, node->name, node->len);
+      fprintf(stderr, ";\n");
+      break;
     default:
       fprintf(stderr, "unimplemented printer: %d\n", node->kind);
       assert(!"unimplemented printer");
@@ -754,6 +781,9 @@ void gen(node_t *node) {
   }
 
   switch (node->kind) {
+    case NODE_VAR_DEC:
+      // do nothing
+      break;
     case NODE_ADD:
       gen(node->lhs);
       gen(node->rhs);
