@@ -793,12 +793,18 @@ void gen_push(char *src) {
   printf("%ssw %s, 0(sp)          # ____\n", indent, src);
 }
 
+void gen(node_t *node);
+
 void gen_lval(node_t *node) {
-  if (node->kind != NODE_LVAR) {
+  if (node->kind == NODE_LVAR) {
+    // local variable address
+    printf("%saddi t0, fp, %d\n", indent, node->offset);
+    gen_push("t0");
+  } else if (node->kind == NODE_DEREF) {
+    gen(node->rhs);
+  } else {
     error("左辺値が左辺値ではない！ kind=%d", node->kind);
   }
-  printf("%saddi t0, fp, %d\n", indent, node->offset);
-  gen_push("t0");
 }
 
 void gen_alloc_stack(lvar_t *lvar) {
@@ -935,7 +941,6 @@ void gen(node_t *node) {
       break;
     case NODE_ASSIGN:
       gen(node->rhs);
-      assert(node->lhs->kind == NODE_LVAR);
       gen_lval(node->lhs);
       gen_pop("t1");  // address
       gen_pop("t0");  // value
