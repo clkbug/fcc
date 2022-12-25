@@ -91,6 +91,15 @@ token_t *consume_ident() {
   return tok;
 }
 
+token_t *consume_ident_or_fail() {
+  if (token->kind != TK_IDENT) {
+    return NULL;
+  }
+  token_t *tok = token;
+  token = token->next;
+  return tok;
+}
+
 token_t *consume_reserved(token_kind_t kind) {
   if (token->kind != kind) {
     return NULL;
@@ -98,6 +107,13 @@ token_t *consume_reserved(token_kind_t kind) {
   token_t *tok = token;
   token = token->next;
   return tok;
+}
+
+void push_token(token_t *tok) {
+  if (tok->next != token) {
+    error("failed to push token");
+  }
+  token = tok;
 }
 
 bool at_eof() { return token->kind == TK_EOF; }
@@ -179,9 +195,21 @@ token_t *tokenize(char *p) {
 }
 
 typedef struct type_t {
-  enum { TYPE_INT, TYPE_POITNER } ty;
+  enum { TYPE_INVALID, TYPE_INT, TYPE_POITNER } ty;
   struct type_t *ptr_to;
 } type_t;
+
+type_t *new_type() { return calloc(1, sizeof(type_t)); }
+
+size_t calc_size_of_type(type_t *t) {
+  if (t->ty == TYPE_INT) {
+    return 4;
+  } else if (t->ty == TYPE_POITNER) {
+    return 4;
+  }
+  error("calc_size_of_type: invalid data type: %d", t->ty);
+  return 0;
+}
 
 typedef enum {
   NODE_INVALID,
@@ -267,7 +295,7 @@ typedef struct lvar_t {
   size_t len;  // var name's length
   size_t size;
   int offset;  // from fp
-  type_t type;
+  type_t *type;
 } lvar_t;
 
 lvar_t *locals;
@@ -290,12 +318,13 @@ size_t calc_total_lvar_size(lvar_t *var) {
   return size;
 }
 
-void add_lvar(char *name, size_t len) {
+void add_lvar(char *name, size_t len, type_t *ty) {
   lvar_t *lvar = calloc(1, sizeof(lvar_t));
   lvar->next = locals;
   lvar->name = name;
   lvar->len = len;
-  lvar->size = 4;
+  lvar->type = ty;
+  lvar->size = calc_size_of_type(ty);
   lvar->offset = calc_total_lvar_size(locals);
   locals = lvar;
 }
@@ -463,15 +492,26 @@ node_t *parse_exp(int min_bind_pow) {
 
 node_t *parse_stmt() {
   node_t *node = new_node();
-  if (consume_reserved(TK_TYPE)) {
-    node->kind = NODE_VAR_DEC;
-    token_t *tok = consume_ident();
-    if (tok == NULL) {
-      error("IDENT expected after TK_TYPE!");
+  token_t *tok;
+  if ((tok = consume_reserved(TK_TYPE))) {
+    type_t *t = new_type();
+    if (!(tok->len == 3 && memcmp(tok->str, "int", 3) == 0)) {
+      // not int
+      error("unknown type: %s", tok->str);
     }
+    t->ty = TYPE_INT;
+
+    while (!(tok = consume_ident_or_fail())) {
+      consume("*");
+      type_t *t1 = new_type();
+      t1->ty = TYPE_POITNER;
+      t1->ptr_to = t;
+      t = t1;
+    }
+    node->kind = NODE_VAR_DEC;
     node->name = tok->str;
     node->len = tok->len;
-    add_lvar(tok->str, tok->len);
+    add_lvar(tok->str, tok->len, t);
     expect(";");
   } else if (consume_reserved(TK_RETURN)) {
     node->kind = NODE_RETURN;
@@ -550,7 +590,9 @@ declaration_t *parse_declaration() {
       error("expected TK_TYPE in function's parameters");
     }
     tok = consume_ident();
-    add_lvar(tok->str, tok->len);
+    type_t *t = new_type();
+    t->ty = TYPE_INT;
+    add_lvar(tok->str, tok->len, t);
     d->func_arg[i] = tok;
     d->func_arg_count = i + 1;
   }
