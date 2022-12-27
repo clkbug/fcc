@@ -194,12 +194,21 @@ token_t *tokenize(char *p) {
   return head.next;
 }
 
+typedef enum type_kind_t { TYPE_INVALID, TYPE_INT, TYPE_POITNER } type_kind_t;
+
 typedef struct type_t {
-  enum { TYPE_INVALID, TYPE_INT, TYPE_POITNER } ty;
+  type_kind_t ty;
   struct type_t *ptr_to;
 } type_t;
 
 type_t *new_type() { return calloc(1, sizeof(type_t)); }
+
+type_t *new_type_with(type_kind_t tk, type_t *ptr) {
+  type_t *t = calloc(1, sizeof(type_t));
+  t->ty = tk;
+  t->ptr_to = ptr;
+  return t;
+}
 
 size_t calc_size_of_type(type_t *t) {
   if (t->ty == TYPE_INT) {
@@ -247,6 +256,7 @@ typedef struct node_t {
   int val;      // for NODE_NUM
   int offset;   // for NODE_LVAR, from fp
   bool ignore;  // if true, then pop(ignore) the value
+  type_t *type;
 
   // for variable
   char *name;
@@ -610,6 +620,12 @@ declaration_t *parse_declaration() {
   }
 
   return d;
+}
+
+void add_type(node_t *node) {
+  if (node->kind == NODE_NUM) {
+    node->type = new_type_with(TYPE_INT, NULL);
+  }
 }
 
 void print_str_len(FILE *fp, char *str, size_t len) {
