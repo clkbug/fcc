@@ -194,7 +194,12 @@ token_t *tokenize(char *p) {
   return head.next;
 }
 
-typedef enum type_kind_t { TYPE_INVALID, TYPE_INT, TYPE_POITNER } type_kind_t;
+typedef enum type_kind_t {
+  TYPE_INVALID,
+  TYPE_VOID,
+  TYPE_INT,
+  TYPE_POITNER
+} type_kind_t;
 
 typedef struct type_t {
   type_kind_t ty;
@@ -345,6 +350,7 @@ node_t *parse_int() {
   node_t *node = new_node();
   node->kind = NODE_NUM;
   node->val = expect_int();
+  node->type = new_type_with(TYPE_INT, NULL);
   return node;
 }
 
@@ -429,6 +435,7 @@ node_t *parse_exp(int min_bind_pow) {
       lvar_t *lvar = find_lvar(tok);
       if (lvar) {
         node->offset = lvar->offset;
+        node->type = lvar->type;
       } else {
         error("%s not declared", tok->str);
       }
@@ -572,6 +579,80 @@ node_t *parse_stmt() {
   return node;
 }
 
+void add_type(node_t *node) {
+  switch (node->kind) {
+    case NODE_NUM:
+      node->type = new_type_with(TYPE_INT, NULL);
+      break;
+    case NODE_ADD:
+    case NODE_SUB:
+      add_type(node->lhs);
+      add_type(node->rhs);
+      if (node->lhs->type->ty == TYPE_POITNER) {
+        node->type = node->lhs->type;
+      } else if (node->rhs->type->ty == TYPE_POITNER) {
+        node->type = node->rhs->type;
+      } else {
+        node->type = node->lhs->type;
+      }
+      break;
+    case NODE_MUL:
+    case NODE_DIV:
+    case NODE_LT:
+    case NODE_LE:
+    case NODE_GT:
+    case NODE_GE:
+    case NODE_EQ:
+    case NODE_NEQ:
+    case NODE_ASSIGN:
+      add_type(node->lhs);
+      add_type(node->rhs);
+      node->type = node->lhs->type;
+      break;
+    case NODE_RETURN:
+      add_type(node->rhs);
+      node->type = new_type_with(TYPE_VOID, NULL);
+      break;
+    case NODE_IF:
+    case NODE_WHILE:
+      if (node->init) {
+        add_type(node->init);  // only for NODE_FOR
+      }
+      add_type(node->cond);
+      add_type(node->clause_then);
+      if (node->clause_else) {
+        add_type(node->clause_else);  // only for NODE_IF
+      }
+      node->type = new_type_with(TYPE_VOID, NULL);
+      break;
+    case NODE_BLOCK:
+      for (size_t i = 0; i < node->statement_count; i++) {
+        add_type(node->statements[i]);
+      }
+      node->type = new_type_with(TYPE_VOID, NULL);
+      break;
+    case NODE_LVAR:
+      // typed in parsing
+      break;
+    case NODE_CALL:
+      for (int i = 0; i < node->args_count; i++) {
+        add_type(node->args[i]);
+      }
+      node->type = new_type_with(TYPE_VOID, NULL);
+      break;
+    case NODE_ADDR:
+      add_type(node->rhs);
+      node->type = new_type_with(TYPE_POITNER, node->rhs->type);
+      break;
+    case NODE_DEREF:
+      add_type(node->rhs);
+      node->type = node->rhs->type->ptr_to;
+      break;
+    default:
+      break;
+  }
+}
+
 declaration_t *parse_declaration() {
   declaration_t *d = new_declaration();
 
@@ -616,16 +697,11 @@ declaration_t *parse_declaration() {
       break;
     }
     d->func_statements[i] = parse_stmt();
+    add_type(d->func_statements[i]);
     d->func_statement_count = i + 1;
   }
 
   return d;
-}
-
-void add_type(node_t *node) {
-  if (node->kind == NODE_NUM) {
-    node->type = new_type_with(TYPE_INT, NULL);
-  }
 }
 
 void print_str_len(FILE *fp, char *str, size_t len) {
