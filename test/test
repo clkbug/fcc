@@ -132,5 +132,8 @@ assert 111 "main () {int a; int *b; int **c; int ***d; a = 111; b = &a; c = &b; 
 assert 100 "main () { int a; int* b; a = 100; b = &a; return *b; }"
 assert 100 "main () { int a; int* b; b = &a; *b = 100; return *b; }"
 assert 100 "main () { int a; int* b; b = &a; *b = 100; return a; }"
+assert 10 "main () { int a; int b; int c; int* p; a = 1; b = 10; c = 100; p = &b; return *p; }"
+assert 100 "main () { int a; int b; int c; int* p; a = 1; b = 10; c = 100; p = &b; return *(p+1); }"
+assert 1 "main () { int a; int b; int c; int* p; a = 1; b = 10; c = 100; p = &b; return *(p-1); }"
 
 echo OK
