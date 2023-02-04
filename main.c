@@ -854,8 +854,13 @@ void gen(node_t *node) {
     case NODE_ADD:
       gen(node->lhs);
       gen(node->rhs);
-      gen_pop("t0");
-      gen_pop("t1");
+      gen_pop("t0");  // rhs
+      gen_pop("t1");  // lhs
+      if (node->lhs->type->ty == TYPE_POITNER) {
+        printf("%sslli t0, t0, 2\n", indent);  // rhs * 4
+      } else if (node->rhs->type->ty == TYPE_POITNER) {
+        printf("%sslli t1, t1, 2\n", indent);  // lhs * 4
+      }
       printf("%sadd t0, t1, t0\n", indent);
       gen_push("t0");
       break;
