@@ -147,8 +147,9 @@ token_t *tokenize(char *p) {
       }
     }
     if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '>' ||
-        *p == '<' || *p == '(' || *p == ')' || *p == '=' || *p == ';' ||
-        *p == '{' || *p == '}' || *p == ',' || *p == '&') {
+        *p == '<' || *p == '(' || *p == ')' || *p == '[' || *p == ']' ||
+        *p == '=' || *p == ';' || *p == '{' || *p == '}' || *p == ',' ||
+        *p == '&') {
       cur = new_token(TK_RESERVED, cur, p, 1);
       p++;
       continue;
@@ -198,12 +199,14 @@ typedef enum type_kind_t {
   TYPE_INVALID,
   TYPE_VOID,
   TYPE_INT,
-  TYPE_POITNER
+  TYPE_POITNER,
+  TYPE_ARRAY,
 } type_kind_t;
 
 typedef struct type_t {
   type_kind_t ty;
   struct type_t *ptr_to;
+  int n;  // for TYPE_ARRAY
 } type_t;
 
 type_t *new_type() { return calloc(1, sizeof(type_t)); }
@@ -215,11 +218,35 @@ type_t *new_type_with(type_kind_t tk, type_t *ptr) {
   return t;
 }
 
+void print_type(type_t *t) {
+  switch (t->ty) {
+    case TYPE_VOID:
+      fprintf(stderr, "void");
+      break;
+    case TYPE_INT:
+      fprintf(stderr, "int");
+      break;
+    case TYPE_POITNER:
+      fprintf(stderr, "*");
+      print_type(t->ptr_to);
+      break;
+    case TYPE_ARRAY:
+      fprintf(stderr, "[%d]", t->n);
+      print_type(t->ptr_to);
+      break;
+    case TYPE_INVALID:
+      error("tried to print TYPE_INVALID!");
+      break;
+  }
+}
+
 size_t calc_size_of_type(type_t *t) {
   if (t->ty == TYPE_INT) {
     return 4;
   } else if (t->ty == TYPE_POITNER) {
     return 4;
+  } else if (t->ty == TYPE_ARRAY) {
+    return t->n * calc_size_of_type(t->ptr_to);
   }
   error("calc_size_of_type: invalid data type: %d", t->ty);
   return 0;
@@ -520,15 +547,20 @@ node_t *parse_stmt() {
 
     while (!(tok = consume_ident_or_fail())) {
       consume("*");
-      type_t *t1 = new_type();
-      t1->ty = TYPE_POITNER;
-      t1->ptr_to = t;
-      t = t1;
+      t = new_type_with(TYPE_POITNER, t);
     }
     node->kind = NODE_VAR_DEC;
     node->name = tok->str;
     node->len = tok->len;
+
+    if (consume("[")) {
+      t = new_type_with(TYPE_ARRAY, t);
+      t->n = expect_int();
+      expect("]");
+    }
+
     add_lvar(tok->str, tok->len, t);
+
     expect(";");
   } else if (consume_reserved(TK_RETURN)) {
     node->kind = NODE_RETURN;
@@ -932,9 +964,11 @@ void gen(node_t *node) {
       gen(node->rhs);
       gen_pop("t0");  // rhs
       gen_pop("t1");  // lhs
-      if (node->lhs->type->ty == TYPE_POITNER) {
+      if (node->lhs->type->ty == TYPE_POITNER ||
+          node->lhs->type->ty == TYPE_ARRAY) {
         printf("%sslli t0, t0, 2\n", indent);  // rhs * 4
-      } else if (node->rhs->type->ty == TYPE_POITNER) {
+      } else if (node->rhs->type->ty == TYPE_POITNER ||
+                 node->rhs->type->ty == TYPE_ARRAY) {
         printf("%sslli t1, t1, 2\n", indent);  // lhs * 4
       }
       printf("%sadd t0, t1, t0\n", indent);
@@ -945,9 +979,11 @@ void gen(node_t *node) {
       gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
-      if (node->lhs->type->ty == TYPE_POITNER) {
+      if (node->lhs->type->ty == TYPE_POITNER ||
+          node->lhs->type->ty == TYPE_ARRAY) {
         printf("%sslli t0, t0, 2\n", indent);  // rhs * 4
-      } else if (node->rhs->type->ty == TYPE_POITNER) {
+      } else if (node->rhs->type->ty == TYPE_POITNER ||
+                 node->rhs->type->ty == TYPE_ARRAY) {
         printf("%sslli t1, t1, 2\n", indent);  // lhs * 4
       }
       printf("%ssub t0, t1, t0\n", indent);
@@ -1037,9 +1073,11 @@ void gen(node_t *node) {
       break;
     case NODE_LVAR:
       gen_lval(node);
-      gen_pop("t0");
-      printf("%slw t0, 0(t0)\n", indent);
-      gen_push("t0");
+      if (node->type->ty != TYPE_ARRAY) {
+        gen_pop("t0");
+        printf("%slw t0, 0(t0)\n", indent);
+        gen_push("t0");
+      }
       break;
     case NODE_ASSIGN:
       gen(node->rhs);
