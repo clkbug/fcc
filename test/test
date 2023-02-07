@@ -148,6 +148,8 @@ assert 20 "main () { int a[1]; *a = 20; return a[0]; }"
 assert 20 "main () { int a[1]; a[0] = 20; return a[0]; }"
 assert 99 "main () { int a[2]; a[1] = 99; return a[1]; }"
 assert 55 "main () { int a[3]; a[2] = 55; return a[2]; }"
+assert 55 "main () { int a[3]; a[2] = 55; return a[1+1]; }"
+assert 55 "main () { int a[3]; a[2] = 55; return a[1+2*3-6+1]; }"
 assert 100 "main () { int a[2]; a[0] = 1; a[1] = 99; return a[0]+a[1]; }"
 assert 6 "main () { int a[3]; a[0] = 1; a[1] = 2; a[2] = 3; return a[0]+a[1]+a[2]; }"
 echo OK

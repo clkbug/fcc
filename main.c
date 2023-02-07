@@ -534,11 +534,9 @@ node_t *parse_exp(int min_bind_pow) {
       if (INDEX_LEFT_BINDING_POW <= min_bind_pow) {
         return node;
       }
-      // use LEFT instead of RIGHT, because RIGHT doesn't exist
-      // '[' is the one of the most prior operators.
       node_t *deref = new_node();
       deref->kind = NODE_DEREF;
-      deref->rhs = parse_follower(node, "[", INDEX_LEFT_BINDING_POW, NODE_ADD);
+      deref->rhs = parse_follower(node, "[", 0, NODE_ADD);
       node = deref;
       expect("]");
 
