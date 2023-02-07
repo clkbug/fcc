@@ -277,6 +277,7 @@ typedef enum {
   NODE_CALL,
   NODE_ADDR,
   NODE_DEREF,
+  // NODE_INDEX, // a[i] -> *(a + i)
 } node_kind_t;
 
 #define MAX_STATEMENTS 1024
@@ -383,6 +384,7 @@ node_t *parse_int() {
 
 // binding power
 // high is prior
+const int INDEX_LEFT_BINDING_POW = 201;
 const int NEG_RIGHT_BIND_POW = 151;
 const int ADDR_RIGHT_BIND_POW = 151;
 const int DEREF_RIGHT_BIND_POW = 151;
@@ -528,6 +530,18 @@ node_t *parse_exp(int min_bind_pow) {
         return node;
       }
       node = parse_follower(node, "=", ASSIGN_RIGHT_BINDING_POWER, NODE_ASSIGN);
+    } else if (peek("[")) {
+      if (INDEX_LEFT_BINDING_POW <= min_bind_pow) {
+        return node;
+      }
+      // use LEFT instead of RIGHT, because RIGHT doesn't exist
+      // '[' is the one of the most prior operators.
+      node_t *deref = new_node();
+      deref->kind = NODE_DEREF;
+      deref->rhs = parse_follower(node, "[", INDEX_LEFT_BINDING_POW, NODE_ADD);
+      node = deref;
+      expect("]");
+
     } else {
       return node;
     }
