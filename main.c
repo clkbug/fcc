@@ -268,7 +268,7 @@ typedef enum {
   NODE_GE,
   NODE_NUM,
   NODE_ASSIGN,
-  NODE_LVAR,
+  NODE_LOCAL_VARIABLE,
   NODE_RETURN,
   NODE_IF,
   NODE_WHILE,
@@ -287,7 +287,7 @@ typedef struct node_t {
   struct node_t *lhs;
   struct node_t *rhs;
   int val;      // for NODE_NUM
-  int offset;   // for NODE_LVAR, from fp
+  int offset;   // for NODE_LOCAL_VARIABLE, from fp
   bool ignore;  // if true, then pop(ignore) the value
   type_t *type;
 
@@ -332,19 +332,19 @@ declaration_t *new_declaration() {
   return d;
 }
 
-typedef struct lvar_t {
-  struct lvar_t *next;
+typedef struct local_variable_t {
+  struct local_variable_t *next;
   char *name;  // var's name
   size_t len;  // var name's length
   size_t size;
   int offset;  // from fp
   type_t *type;
-} lvar_t;
+} local_variable_t;
 
-lvar_t *locals;
+local_variable_t *locals;
 
-lvar_t *find_lvar(token_t *tok) {
-  for (lvar_t *var = locals; var; var = var->next) {
+local_variable_t *find_local_variable(token_t *tok) {
+  for (local_variable_t *var = locals; var; var = var->next) {
     if (var->len == tok->len && !memcmp(tok->str, var->name, var->len)) {
       return var;
     }
@@ -352,7 +352,7 @@ lvar_t *find_lvar(token_t *tok) {
   return NULL;
 }
 
-size_t calc_total_lvar_size(lvar_t *var) {
+size_t calc_total_local_variable_size(local_variable_t *var) {
   size_t size = 0;
   while (var) {
     size += var->size;
@@ -361,14 +361,14 @@ size_t calc_total_lvar_size(lvar_t *var) {
   return size;
 }
 
-void add_lvar(char *name, size_t len, type_t *ty) {
-  lvar_t *lvar = calloc(1, sizeof(lvar_t));
+void add_local_variable(char *name, size_t len, type_t *ty) {
+  local_variable_t *lvar = calloc(1, sizeof(local_variable_t));
   lvar->next = locals;
   lvar->name = name;
   lvar->len = len;
   lvar->type = ty;
   lvar->size = calc_size_of_type(ty);
-  lvar->offset = calc_total_lvar_size(locals);
+  lvar->offset = calc_total_local_variable_size(locals);
   locals = lvar;
 }
 
@@ -460,8 +460,8 @@ node_t *parse_exp(int min_bind_pow) {
       }
     } else {
       // variable
-      node->kind = NODE_LVAR;
-      lvar_t *lvar = find_lvar(tok);
+      node->kind = NODE_LOCAL_VARIABLE;
+      local_variable_t *lvar = find_local_variable(tok);
       if (lvar) {
         node->offset = lvar->offset;
         node->type = lvar->type;
@@ -571,7 +571,7 @@ node_t *parse_stmt() {
       expect("]");
     }
 
-    add_lvar(tok->str, tok->len, t);
+    add_local_variable(tok->str, tok->len, t);
 
     expect(";");
   } else if (consume_reserved(TK_RETURN)) {
@@ -675,7 +675,7 @@ void add_type(node_t *node) {
       }
       node->type = new_type_with(TYPE_VOID, NULL);
       break;
-    case NODE_LVAR:
+    case NODE_LOCAL_VARIABLE:
       // typed in parsing
       break;
     case NODE_CALL:
@@ -727,7 +727,7 @@ declaration_t *parse_declaration() {
     tok = consume_ident();
     type_t *t = new_type();
     t->ty = TYPE_INT;
-    add_lvar(tok->str, tok->len, t);
+    add_local_variable(tok->str, tok->len, t);
     d->func_arg[i] = tok;
     d->func_arg_count = i + 1;
   }
@@ -806,7 +806,7 @@ void print_node(node_t *node) {
     case NODE_NUM:
       fprintf(stderr, "%d", node->val);
       break;
-    case NODE_LVAR: {
+    case NODE_LOCAL_VARIABLE: {
       print_str_len(stderr, node->name, node->len);
       break;
     }
@@ -932,7 +932,7 @@ void gen_push(char *src) {
 void gen(node_t *node);
 
 void gen_lval(node_t *node) {
-  if (node->kind == NODE_LVAR) {
+  if (node->kind == NODE_LOCAL_VARIABLE) {
     // local variable address
     printf("%saddi t0, fp, %d\n", indent, node->offset);
     gen_push("t0");
@@ -943,14 +943,14 @@ void gen_lval(node_t *node) {
   }
 }
 
-void gen_alloc_stack(lvar_t *lvar) {
-  size_t bytes = calc_total_lvar_size(lvar);
+void gen_alloc_stack(local_variable_t *lvar) {
+  size_t bytes = calc_total_local_variable_size(lvar);
   fprintf(stderr, "stack alloc %zd\n", bytes);
   printf("%saddi sp, sp, -%zd\n", indent, bytes);
 }
 
-void gen_free_stack(lvar_t *lvar) {
-  size_t bytes = calc_total_lvar_size(lvar);
+void gen_free_stack(local_variable_t *lvar) {
+  size_t bytes = calc_total_local_variable_size(lvar);
   fprintf(stderr, "stack free %zd\n", bytes);
   printf("%saddi sp, sp, %zd\n", indent, bytes);
 }
@@ -1083,7 +1083,7 @@ void gen(node_t *node) {
       printf("%ssnez t0, t0\n", indent);
       gen_push("t0");
       break;
-    case NODE_LVAR:
+    case NODE_LOCAL_VARIABLE:
       gen_lval(node);
       if (node->type->ty != TYPE_ARRAY) {
         gen_pop("t0");
@@ -1223,7 +1223,7 @@ void print_func_prologue(declaration_t *dec) {
   // push arguments
   for (size_t i = 0; i < dec->func_arg_count; i++) {
     char reg[] = "a0";
-    lvar_t *var = find_lvar(dec->func_arg[i]);
+    local_variable_t *var = find_local_variable(dec->func_arg[i]);
     reg[1] += i;
     fprintf(stderr, "push arg %s\n", reg);
     printf("%ssw %s, %d(fp)\n", indent, reg, var->offset);
