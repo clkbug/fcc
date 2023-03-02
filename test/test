@@ -152,4 +152,9 @@ assert 55 "main () { int a[3]; a[2] = 55; return a[1+1]; }"
 assert 55 "main () { int a[3]; a[2] = 55; return a[1+2*3-6+1]; }"
 assert 100 "main () { int a[2]; a[0] = 1; a[1] = 99; return a[0]+a[1]; }"
 assert 6 "main () { int a[3]; a[0] = 1; a[1] = 2; a[2] = 3; return a[0]+a[1]+a[2]; }"
+
+# global variable
+assert 0 "main () { return a; }"
+assert 0 "main () { return a + b; }"
+
 echo OK

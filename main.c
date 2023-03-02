@@ -269,6 +269,7 @@ typedef enum {
   NODE_NUM,
   NODE_ASSIGN,
   NODE_LOCAL_VARIABLE,
+  NODE_GLOBAL_VARIABLE,
   NODE_RETURN,
   NODE_IF,
   NODE_WHILE,
@@ -341,10 +342,10 @@ typedef struct local_variable_t {
   type_t *type;
 } local_variable_t;
 
-local_variable_t *locals;
+local_variable_t *local_variables;
 
 local_variable_t *find_local_variable(token_t *tok) {
-  for (local_variable_t *var = locals; var; var = var->next) {
+  for (local_variable_t *var = local_variables; var; var = var->next) {
     if (var->len == tok->len && !memcmp(tok->str, var->name, var->len)) {
       return var;
     }
@@ -363,13 +364,43 @@ size_t calc_total_local_variable_size(local_variable_t *var) {
 
 void add_local_variable(char *name, size_t len, type_t *ty) {
   local_variable_t *lvar = calloc(1, sizeof(local_variable_t));
-  lvar->next = locals;
+  lvar->next = local_variables;
   lvar->name = name;
   lvar->len = len;
   lvar->type = ty;
   lvar->size = calc_size_of_type(ty);
-  lvar->offset = calc_total_local_variable_size(locals);
-  locals = lvar;
+  lvar->offset = calc_total_local_variable_size(local_variables);
+  local_variables = lvar;
+}
+
+typedef struct global_variable_t {
+  struct global_variable_t *next;
+  char *name;  // var's name
+  size_t len;  // var name's length
+  size_t size;
+  type_t *type;
+} global_variable_t;
+
+// global variable
+global_variable_t *global_variables;
+
+global_variable_t *find_global_variable(token_t *tok) {
+  for (global_variable_t *var = global_variables; var; var = var->next) {
+    if (var->len == tok->len && !memcmp(tok->str, var->name, var->len)) {
+      return var;
+    }
+  }
+  return NULL;
+}
+
+void add_global_variable(char *name, size_t len, type_t *ty) {
+  global_variable_t *var = calloc(1, sizeof(global_variable_t));
+  var->next = global_variables;
+  var->name = name;
+  var->len = len;
+  var->type = ty;
+  var->size = calc_size_of_type(ty);
+  global_variables = var;
 }
 
 node_t *new_node() { return (node_t *)calloc(1, sizeof(node_t)); }
@@ -460,11 +491,17 @@ node_t *parse_exp(int min_bind_pow) {
       }
     } else {
       // variable
-      node->kind = NODE_LOCAL_VARIABLE;
       local_variable_t *lvar = find_local_variable(tok);
+      global_variable_t *gvar = find_global_variable(tok);
       if (lvar) {
+        node->kind = NODE_LOCAL_VARIABLE;
         node->offset = lvar->offset;
         node->type = lvar->type;
+      } else if (gvar) {
+        node->kind = NODE_GLOBAL_VARIABLE;
+        node->type = gvar->type;
+        node->name = gvar->name;
+        node->len = gvar->len;
       } else {
         error("%s not declared", tok->str);
       }
@@ -1102,7 +1139,7 @@ void gen(node_t *node) {
     case NODE_RETURN:
       gen(node->rhs);
       gen_pop("a0");
-      gen_free_stack(locals);
+      gen_free_stack(local_variables);
       gen_pop("fp");
       printf("%sret\n", indent);
       break;
@@ -1217,7 +1254,7 @@ void print_func_prologue(declaration_t *dec) {
   printf(":\n");
   gen_push("fp");  // save fp
 
-  gen_alloc_stack(locals);
+  gen_alloc_stack(local_variables);
   printf("%smv   fp, sp\n", indent);  // update fp
 
   // push arguments
