@@ -177,6 +177,8 @@ token_t *tokenize(char *p) {
         cur->kind = TK_TYPE;
       } else if (strncmp(cur->str, "size_t", 6) == 0) {
         cur->kind = TK_TYPE;
+      } else if (strncmp(cur->str, "void", 4) == 0) {
+        cur->kind = TK_TYPE;
       }
 
       continue;
@@ -201,12 +203,19 @@ typedef enum type_kind_t {
   TYPE_INT,
   TYPE_POITNER,
   TYPE_ARRAY,
+  TYPE_FUNCTION,
 } type_kind_t;
 
+#define MAX_ARGS 8
 typedef struct type_t {
   type_kind_t ty;
   struct type_t *ptr_to;
-  int n;  // for TYPE_ARRAY
+  int n;  // for TYPE_ARRAY and TYPE_FUNCTION(# of parameters)
+
+  // TYPE_FUNCTION
+  struct type_t *ret;  // return type
+  struct type_t *args[MAX_ARGS];
+
 } type_t;
 
 type_t *new_type() { return calloc(1, sizeof(type_t)); }
@@ -236,6 +245,19 @@ void print_type(type_t *t) {
       break;
     case TYPE_INVALID:
       error("tried to print TYPE_INVALID!");
+      break;
+    case TYPE_FUNCTION:
+      for (int i = 0; i < t->n; i++) {
+        if (0 < i) {
+          fprintf(stderr, "->");
+        }
+        print_type(t->args[i]);
+      }
+      fprintf(stderr, "->");
+      print_type(t->ret);
+      break;
+    default:
+      error("tried to print %d!", t->ty);
       break;
   }
 }
@@ -282,7 +304,6 @@ typedef enum {
 } node_kind_t;
 
 #define MAX_STATEMENTS 1024
-#define MAX_ARGS 8
 typedef struct node_t {
   node_kind_t kind;
   struct node_t *lhs;
@@ -316,9 +337,16 @@ typedef struct node_t {
   size_t args_count;
 } node_t;
 
+typedef enum {
+  DECLARATION_FUNCTION,
+  DECLARATION_GLOBAL_VARIABLE,
+} declaration_type_t;
+
 typedef struct declaration_t {
-  char *func_name;
-  size_t func_name_length;
+  declaration_type_t declaration_type;
+  char *name;
+  size_t name_length;
+  type_t *type;
 
   token_t *func_arg[MAX_ARGS];
   size_t func_arg_count;
@@ -737,14 +765,38 @@ void add_type(node_t *node) {
 declaration_t *parse_declaration() {
   declaration_t *d = new_declaration();
 
-  // parse function name
-  token_t *tok = consume_ident();
-  if (tok->kind != TK_IDENT) {
-    error("failed to parse declaration: token kind %d", token->kind);
+  token_t *tok = consume_reserved(TK_TYPE);
+  type_t *t = new_type();
+
+  if (!tok) {
+    error("unknown type: %s", tok->str);
   }
 
-  d->func_name = tok->str;
-  d->func_name_length = tok->len;
+  if (!(tok->len == 3 && memcmp(tok->str, "int", 3) == 0)) {
+    // not int
+    error("unknown type: %s", tok->str);
+  }
+  t->ty = TYPE_INT;
+
+  while (!(tok = consume_ident_or_fail())) {
+    consume("*");
+    t = new_type_with(TYPE_POITNER, t);
+  }
+  d->name = tok->str;
+  d->name_length = tok->len;
+
+  if (consume("[")) {
+    t = new_type_with(TYPE_ARRAY, t);
+    t->n = expect_int();
+    expect("]");
+  }
+
+  if (consume(";")) {
+    // global variable
+    d->declaration_type = DECLARATION_GLOBAL_VARIABLE;
+    d->type = t;
+    return d;
+  }
 
   if (!consume("(")) {
     error("failed to parse declaration: '(' expected");
@@ -921,7 +973,7 @@ void print_node(node_t *node) {
 }
 
 void print_declaration(declaration_t *dec) {
-  print_str_len(stderr, dec->func_name, dec->func_name_length);
+  print_str_len(stderr, dec->name, dec->name_length);
   fprintf(stderr, "(");
   for (size_t i = 0; i < dec->func_arg_count; i++) {
     if (0 < i) {
@@ -1245,12 +1297,12 @@ void gen(node_t *node) {
 
 void print_func_prologue(declaration_t *dec) {
   printf("  .globl  ");
-  print_str_len(stdout, dec->func_name, dec->func_name_length);
+  print_str_len(stdout, dec->name, dec->name_length);
   printf("\n");
   printf("  .type	");
-  print_str_len(stdout, dec->func_name, dec->func_name_length);
+  print_str_len(stdout, dec->name, dec->name_length);
   printf(", @function\n");
-  print_str_len(stdout, dec->func_name, dec->func_name_length);
+  print_str_len(stdout, dec->name, dec->name_length);
   printf(":\n");
   gen_push("fp");  // save fp
 
