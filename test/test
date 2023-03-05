@@ -154,7 +154,10 @@ assert 100 "int main () { int a[2]; a[0] = 1; a[1] = 99; return a[0]+a[1]; }"
 assert 6 "int main () { int a[3]; a[0] = 1; a[1] = 2; a[2] = 3; return a[0]+a[1]+a[2]; }"
 
 # global variable
-assert 0 "int main () { return a; }"
-assert 0 "int main () { return a + b; }"
+assert 100 "int a; int main () { a = 111; return 100; }"
+assert 100 "int a; int main () { a = 100; return a; }"
+assert 123 "int a; int b; int main () { a = 100; b = 23; return a + b; }"
+assert 6 "int a[3]; int main () { a[0] = 1; a[1] = 2; a[2] = 3; return a[0] + a[1] + a[2]; }"
+
 
 echo OK

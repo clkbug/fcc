@@ -21,3 +21,7 @@ debug: $(TARGET)
 	riscv32-unknown-elf-gcc -g -o /tmp/a.out /tmp/a.s test/predefined.c
 	qemu-riscv32 -g 12345 /tmp/a.out &
 	riscv32-unknown-elf-gdb /tmp/a.out -x qemu.cmd >qemu.out.txt </dev/null
+
+podman-debug: clean
+	podman run --interactive --rm -v ${PWD}:/work:z rv32-compiler make
+	podman run --interactive --rm -v ${PWD}:/work:z rv32-compiler make debug ARGS="$(ARGS)"

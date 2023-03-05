@@ -269,6 +269,8 @@ size_t calc_size_of_type(type_t *t) {
     return 4;
   } else if (t->ty == TYPE_ARRAY) {
     return t->n * calc_size_of_type(t->ptr_to);
+  } else if (t->ty == TYPE_FUNCTION) {
+    return 4;
   }
   error("calc_size_of_type: invalid data type: %d", t->ty);
   return 0;
@@ -795,12 +797,18 @@ declaration_t *parse_declaration() {
     // global variable
     d->declaration_type = DECLARATION_GLOBAL_VARIABLE;
     d->type = t;
+
+    add_global_variable(d->name, d->name_length, t);
     return d;
   }
 
   if (!consume("(")) {
     error("failed to parse declaration: '(' expected");
   }
+  d->declaration_type = DECLARATION_FUNCTION;
+  d->type = new_type();
+  d->type->ty = TYPE_FUNCTION;
+  d->type->ret = t;
   for (size_t i = 0; i < MAX_ARGS; i++) {
     if (consume(")")) {
       break;
@@ -814,9 +822,9 @@ declaration_t *parse_declaration() {
       error("expected TK_TYPE in function's parameters");
     }
     tok = consume_ident();
-    type_t *t = new_type();
-    t->ty = TYPE_INT;
-    add_local_variable(tok->str, tok->len, t);
+    d->type->args[i] = new_type();
+    d->type->args[i]->ty = TYPE_INT;
+    add_local_variable(tok->str, tok->len, d->type->args[i]);
     d->func_arg[i] = tok;
     d->func_arg_count = i + 1;
   }
@@ -895,7 +903,8 @@ void print_node(node_t *node) {
     case NODE_NUM:
       fprintf(stderr, "%d", node->val);
       break;
-    case NODE_LOCAL_VARIABLE: {
+    case NODE_LOCAL_VARIABLE:
+    case NODE_GLOBAL_VARIABLE: {
       print_str_len(stderr, node->name, node->len);
       break;
     }
@@ -973,20 +982,27 @@ void print_node(node_t *node) {
 }
 
 void print_declaration(declaration_t *dec) {
+  print_type(dec->type);
   print_str_len(stderr, dec->name, dec->name_length);
-  fprintf(stderr, "(");
-  for (size_t i = 0; i < dec->func_arg_count; i++) {
-    if (0 < i) {
-      fprintf(stderr, ", ");
-    }
-    print_str_len(stderr, dec->func_arg[i]->str, dec->func_arg[i]->len);
-  }
-  fprintf(stderr, ") {\n");
-  for (size_t i = 0; i < dec->func_statement_count; i++) {
-    print_node(dec->func_statements[i]);
+  if (dec->declaration_type == DECLARATION_GLOBAL_VARIABLE) {
     fprintf(stderr, ";\n");
+  } else if (dec->declaration_type == DECLARATION_FUNCTION) {
+    fprintf(stderr, "(");
+    for (size_t i = 0; i < dec->func_arg_count; i++) {
+      if (0 < i) {
+        fprintf(stderr, ", ");
+      }
+      print_str_len(stderr, dec->func_arg[i]->str, dec->func_arg[i]->len);
+    }
+    fprintf(stderr, ") {\n");
+    for (size_t i = 0; i < dec->func_statement_count; i++) {
+      print_node(dec->func_statements[i]);
+      fprintf(stderr, ";\n");
+    }
+    fprintf(stderr, "}\n");
+  } else {
+    error("failed to print declaration! type: %d", dec->declaration_type);
   }
-  fprintf(stderr, "}\n");
 }
 
 char indent[1024];
@@ -1024,6 +1040,15 @@ void gen_lval(node_t *node) {
   if (node->kind == NODE_LOCAL_VARIABLE) {
     // local variable address
     printf("%saddi t0, fp, %d\n", indent, node->offset);
+    gen_push("t0");
+  } else if (node->kind == NODE_GLOBAL_VARIABLE) {
+    // global variable address
+    printf("%slui t0, %%hi(", indent);
+    print_str_len(stdout, node->name, node->len);
+    printf(")\n");
+    printf("%saddi t0, t0, %%lo(", indent);
+    print_str_len(stdout, node->name, node->len);
+    printf(")\n");
     gen_push("t0");
   } else if (node->kind == NODE_DEREF) {
     gen(node->rhs);
@@ -1180,6 +1205,14 @@ void gen(node_t *node) {
         gen_push("t0");
       }
       break;
+    case NODE_GLOBAL_VARIABLE:
+      gen_lval(node);
+      if (node->type->ty != TYPE_ARRAY) {
+        gen_pop("t0");
+        printf("%slw t0, 0(t0)\n", indent);
+        gen_push("t0");
+      }
+      break;
     case NODE_ASSIGN:
       gen(node->rhs);
       gen_lval(node->lhs);
@@ -1296,10 +1329,12 @@ void gen(node_t *node) {
 }
 
 void print_func_prologue(declaration_t *dec) {
-  printf("  .globl  ");
+  printf("  .text\n");
+  printf("  .align 4\n");
+  printf("  .globl    ");
   print_str_len(stdout, dec->name, dec->name_length);
   printf("\n");
-  printf("  .type	");
+  printf("  .type	    ");
   print_str_len(stdout, dec->name, dec->name_length);
   printf(", @function\n");
   print_str_len(stdout, dec->name, dec->name_length);
@@ -1323,19 +1358,41 @@ void print_func_epilogue(declaration_t *dec) {}
 
 void gen_declaration(declaration_t *dec) {
   depth = 1;
-  update_indent();
-  print_func_prologue(dec);
-  for (size_t i = 0; i < dec->func_statement_count; i++) {
-    gen(dec->func_statements[i]);
+  switch (dec->declaration_type) {
+    case DECLARATION_GLOBAL_VARIABLE:
+      printf("  .globl  ");
+      print_str_len(stdout, dec->name, dec->name_length);
+      printf("\n");
+      printf("  .section  .sdata,\"aw\"\n");
+      printf("  .type     ");
+      print_str_len(stdout, dec->name, dec->name_length);
+      printf(", @object\n");
+
+      printf("  .size     ");
+      print_str_len(stdout, dec->name, dec->name_length);
+      printf(", %zd\n", calc_size_of_type(dec->type));
+
+      print_str_len(stdout, dec->name, dec->name_length);
+      printf(":\n");
+      printf("  .zero %zd\n", calc_size_of_type(dec->type));
+      printf("\n");
+      break;
+    case DECLARATION_FUNCTION:
+      update_indent();
+      print_func_prologue(dec);
+      for (size_t i = 0; i < dec->func_statement_count; i++) {
+        gen(dec->func_statements[i]);
+      }
+      print_func_epilogue(dec);
+      break;
+    default:
+      error("unreachable! invalid declaration");
   }
-  print_func_epilogue(dec);
 }
 
 void print_header() {
   printf("  .file	\"main.c\"\n");
   printf("  .option nopic\n");
-  printf("  .text\n");
-  printf("  .section  .rodata\n");
   printf("  .align  4\n");
   printf("\n");
 }
