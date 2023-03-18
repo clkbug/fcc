@@ -276,6 +276,41 @@ size_t calc_size_of_type(type_t *t) {
   return 0;
 }
 
+typedef struct type_and_name_t {
+  type_t *t;
+  char *name;
+  size_t len;
+} type_and_name_t;
+
+type_and_name_t *parse_type_and_name() {
+  type_and_name_t *a = NULL;
+  token_t *tok;
+  if ((tok = consume_reserved(TK_TYPE))) {
+    a = calloc(sizeof(type_and_name_t), 1);
+    a->t = new_type();
+    if (!(tok->len == 3 && memcmp(tok->str, "int", 3) == 0)) {
+      // not int
+      error("unknown type: %s", tok->str);
+    }
+    a->t->ty = TYPE_INT;
+
+    while (!(tok = consume_ident_or_fail())) {
+      consume("*");
+      a->t = new_type_with(TYPE_POITNER, a->t);
+    }
+
+    a->name = tok->str;
+    a->len = tok->len;
+
+    if (consume("[")) {
+      a->t = new_type_with(TYPE_ARRAY, a->t);
+      a->t->n = expect_int();
+      expect("]");
+    }
+  }
+  return a;
+}
+
 typedef enum {
   NODE_INVALID,
   NODE_VAR_DEC,
@@ -615,30 +650,14 @@ node_t *parse_exp(int min_bind_pow) {
 
 node_t *parse_stmt() {
   node_t *node = new_node();
-  token_t *tok;
-  if ((tok = consume_reserved(TK_TYPE))) {
-    type_t *t = new_type();
-    if (!(tok->len == 3 && memcmp(tok->str, "int", 3) == 0)) {
-      // not int
-      error("unknown type: %s", tok->str);
-    }
-    t->ty = TYPE_INT;
+  type_and_name_t *type_and_name = parse_type_and_name();
 
-    while (!(tok = consume_ident_or_fail())) {
-      consume("*");
-      t = new_type_with(TYPE_POITNER, t);
-    }
+  if (type_and_name) {
     node->kind = NODE_VAR_DEC;
-    node->name = tok->str;
-    node->len = tok->len;
+    node->name = type_and_name->name;
+    node->len = type_and_name->len;
 
-    if (consume("[")) {
-      t = new_type_with(TYPE_ARRAY, t);
-      t->n = expect_int();
-      expect("]");
-    }
-
-    add_local_variable(tok->str, tok->len, t);
+    add_local_variable(node->name, node->len, type_and_name->t);
 
     expect(";");
   } else if (consume_reserved(TK_RETURN)) {
