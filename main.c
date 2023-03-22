@@ -175,6 +175,8 @@ token_t *tokenize(char *p) {
         cur->kind = TK_FOR;
       } else if (strncmp(cur->str, "int", 3) == 0) {
         cur->kind = TK_TYPE;
+      } else if (strncmp(cur->str, "char", 4) == 0) {
+        cur->kind = TK_TYPE;
       } else if (strncmp(cur->str, "size_t", 6) == 0) {
         cur->kind = TK_TYPE;
       } else if (strncmp(cur->str, "void", 4) == 0) {
@@ -190,6 +192,18 @@ token_t *tokenize(char *p) {
       continue;
     }
 
+    if (*p == '\'') {
+      p++;
+      cur = new_token(TK_INT, cur, p, 0);
+      cur->num = *p;
+      p++;
+      if (*p != '\'') {
+        error("failed to tokenize at '%c'\n'x?...", *p);
+      }
+      p++;
+      continue;
+    }
+
     error("failed to tokenize at '%c'\n", *p);
   }
 
@@ -201,6 +215,7 @@ typedef enum type_kind_t {
   TYPE_INVALID,
   TYPE_VOID,
   TYPE_INT,
+  TYPE_CHAR,
   TYPE_POITNER,
   TYPE_ARRAY,
   TYPE_FUNCTION,
@@ -235,6 +250,9 @@ void print_type(type_t *t) {
     case TYPE_INT:
       fprintf(stderr, "int");
       break;
+    case TYPE_CHAR:
+      fprintf(stderr, "char");
+      break;
     case TYPE_POITNER:
       fprintf(stderr, "*");
       print_type(t->ptr_to);
@@ -265,6 +283,8 @@ void print_type(type_t *t) {
 size_t calc_size_of_type(type_t *t) {
   if (t->ty == TYPE_INT) {
     return 4;
+  } else if (t->ty == TYPE_CHAR) {
+    return 1;
   } else if (t->ty == TYPE_POITNER) {
     return 4;
   } else if (t->ty == TYPE_ARRAY) {
@@ -288,8 +308,11 @@ type_and_name_t *parse_type_and_name() {
   if ((tok = consume_reserved(TK_TYPE))) {
     a = calloc(sizeof(type_and_name_t), 1);
     a->t = new_type();
-    if (!(tok->len == 3 && memcmp(tok->str, "int", 3) == 0)) {
-      // not int
+    if (tok->len == 3 && memcmp(tok->str, "int", 3) == 0) {
+      a->t->ty = TYPE_INT;
+    } else if (tok->len == 4 && memcmp(tok->str, "char", 4) == 0) {
+      a->t->ty = TYPE_CHAR;
+    } else {
       error("unknown type: %s", tok->str);
     }
     a->t->ty = TYPE_INT;
@@ -790,14 +813,16 @@ declaration_t *parse_declaration() {
   type_t *t = new_type();
 
   if (!tok) {
-    error("unknown type: %s", tok->str);
+    error("unknown type?: %s", tok->str);
   }
 
-  if (!(tok->len == 3 && memcmp(tok->str, "int", 3) == 0)) {
-    // not int
+  if (tok->len == 3 && memcmp(tok->str, "int", 3) == 0) {
+    t->ty = TYPE_INT;
+  } else if (tok->len == 4 && memcmp(tok->str, "char", 4) == 0) {
+    t->ty = TYPE_CHAR;
+  } else {
     error("unknown type: %s", tok->str);
   }
-  t->ty = TYPE_INT;
 
   while (!(tok = consume_ident_or_fail())) {
     consume("*");
