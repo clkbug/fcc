@@ -10,11 +10,14 @@
             "request": "launch",
             "program": "${workspaceFolder}/fcc",
             "args": [
-                // "main() {return 1+2;}"
+                // "int main() {return 0;}"
+                "int a; int main() {return 0;}"
                 // "main() {int a; int b; return a + b;}"
-                "main () {int a; int b; int c; int d; a = 111; b = &a; c = &b; d = &c; return ***d; }"
+                // "main () {int a; int b; int c; int d; a = 111; b = &a; c = &b; d = &c; return ***d; }"
+                // "int main() { char c; c = 'a'; return c; }",
             ],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "make"
         }
     ]
 }
