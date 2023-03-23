@@ -230,7 +230,8 @@ typedef struct type_t {
   // TYPE_FUNCTION
   struct type_t *ret;  // return type
   struct type_t *args[MAX_ARGS];
-
+  token_t *arg_names[MAX_ARGS];
+  size_t arg_count;
 } type_t;
 
 type_t *new_type() { return calloc(1, sizeof(type_t)); }
@@ -305,6 +306,7 @@ typedef struct type_and_name_t {
 type_and_name_t *parse_type_and_name() {
   type_and_name_t *a = NULL;
   token_t *tok;
+  type_t *tmp;
   if ((tok = consume_reserved(TK_TYPE))) {
     a = calloc(sizeof(type_and_name_t), 1);
     a->t = new_type();
@@ -315,7 +317,6 @@ type_and_name_t *parse_type_and_name() {
     } else {
       error("unknown type: %s", tok->str);
     }
-    a->t->ty = TYPE_INT;
 
     while (!(tok = consume_ident_or_fail())) {
       consume("*");
@@ -329,6 +330,30 @@ type_and_name_t *parse_type_and_name() {
       a->t = new_type_with(TYPE_ARRAY, a->t);
       a->t->n = expect_int();
       expect("]");
+    } else if (consume("(")) {
+      // function
+      tmp = a->t;
+      a->t = new_type();
+      a->t->ret = tmp;
+      a->t->ty = TYPE_FUNCTION;
+      for (size_t i = 0; i < MAX_ARGS; i++) {
+        if (consume(")")) {
+          break;
+        }
+        if (0 < i) {
+          if (!consume(",")) {
+            error("call f(x y)? needs comma?\n");
+          }
+        }
+        if (!consume_reserved(TK_TYPE)) {
+          error("expected TK_TYPE in function's parameters");
+        }
+        tok = consume_ident();
+        a->t->args[i] = new_type();
+        a->t->args[i]->ty = TYPE_INT;
+        a->t->arg_names[i] = tok;
+        a->t->arg_count = i + 1;
+      }
     }
   }
   return a;
@@ -809,74 +834,35 @@ void add_type(node_t *node) {
 declaration_t *parse_declaration() {
   declaration_t *d = new_declaration();
 
-  token_t *tok = consume_reserved(TK_TYPE);
-  type_t *t = new_type();
-
-  if (!tok) {
-    error("unknown type?: %s", tok->str);
-  }
-
-  if (tok->len == 3 && memcmp(tok->str, "int", 3) == 0) {
-    t->ty = TYPE_INT;
-  } else if (tok->len == 4 && memcmp(tok->str, "char", 4) == 0) {
-    t->ty = TYPE_CHAR;
-  } else {
-    error("unknown type: %s", tok->str);
-  }
-
-  while (!(tok = consume_ident_or_fail())) {
-    consume("*");
-    t = new_type_with(TYPE_POITNER, t);
-  }
-  d->name = tok->str;
-  d->name_length = tok->len;
-
-  if (consume("[")) {
-    t = new_type_with(TYPE_ARRAY, t);
-    t->n = expect_int();
-    expect("]");
-  }
+  type_and_name_t *type_and_name = parse_type_and_name();
 
   if (consume(";")) {
-    // global variable
     d->declaration_type = DECLARATION_GLOBAL_VARIABLE;
-    d->type = t;
-
-    add_global_variable(d->name, d->name_length, t);
+    d->type = type_and_name->t;
+    d->name = type_and_name->name;
+    d->name_length = type_and_name->len;
+    add_global_variable(type_and_name->name, type_and_name->len,
+                        type_and_name->t);
     return d;
   }
 
-  if (!consume("(")) {
-    error("failed to parse declaration: '(' expected");
-  }
-  d->declaration_type = DECLARATION_FUNCTION;
-  d->type = new_type();
-  d->type->ty = TYPE_FUNCTION;
-  d->type->ret = t;
-  for (size_t i = 0; i < MAX_ARGS; i++) {
-    if (consume(")")) {
-      break;
-    }
-    if (0 < i) {
-      if (!consume(",")) {
-        error("call f(x y)? needs comma?\n");
-      }
-    }
-    if (!consume_reserved(TK_TYPE)) {
-      error("expected TK_TYPE in function's parameters");
-    }
-    tok = consume_ident();
-    d->type->args[i] = new_type();
-    d->type->args[i]->ty = TYPE_INT;
-    add_local_variable(tok->str, tok->len, d->type->args[i]);
-    d->func_arg[i] = tok;
-    d->func_arg_count = i + 1;
-  }
-
-  // body
   if (!consume("{")) {
     error("failed to parse declaration: '{' expected");
   }
+
+  assert(type_and_name->t->ty == TYPE_FUNCTION);
+  d->declaration_type = DECLARATION_FUNCTION;
+  d->type = type_and_name->t;
+  d->func_arg_count = type_and_name->t->arg_count;
+  d->name = type_and_name->name;
+  d->name_length = type_and_name->len;
+
+  for (size_t i = 0; i < d->func_arg_count; i++) {
+    d->func_arg[i] = type_and_name->t->arg_names[i];
+    add_local_variable(d->func_arg[i]->str, d->func_arg[i]->len,
+                       type_and_name->t->args[i]);
+  }
+
   for (size_t i = 0; i < MAX_STATEMENTS; i++) {
     if (consume("}")) {
       break;
