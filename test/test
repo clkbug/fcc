@@ -29,8 +29,6 @@ assert() {
   fi
 }
 
-
-
 assert 0 "int main() {return 0;}"
 assert 100 "int main() {return 100;}"
 assert 1 "int main() {return 1;}"
@@ -165,5 +163,8 @@ assert 97 "int main() { char c; c = 'a'; return c; }"
 assert 32 "int main() { return 'a' - 'A'; }"
 assert 7 "int main() { return 'a' - 'Z'; }"
 
+
+# string
+assert 0 'char* s = "hello"; int main() {  puts(s); return 0; }'
 
 echo OK

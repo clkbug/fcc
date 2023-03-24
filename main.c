@@ -29,6 +29,7 @@ typedef enum {
   TK_IDENT,
   TK_INT,
   TK_TYPE,
+  TK_STRING,
   TK_EOF,
 } token_kind_t;
 
@@ -129,8 +130,10 @@ token_t *new_token(token_kind_t kind, token_t *cur, char *str, size_t len) {
 
 token_t *tokenize(char *p) {
   token_t head;
-  head.next = NULL;
   token_t *cur = &head;
+  size_t str_len = 0;
+  char *q;
+  head.next = NULL;
 
   while (*p) {
     if (isspace(*p)) {
@@ -201,6 +204,20 @@ token_t *tokenize(char *p) {
         error("failed to tokenize at '%c'\n'x?...", *p);
       }
       p++;
+      continue;
+    }
+
+    if (*p == '"') {
+      q = p;
+      p++;
+      str_len = 1;
+      while (*p != '"') {
+        str_len++;
+        p++;
+      }
+      p++;
+      str_len++;  // includeing '"'s
+      cur = new_token(TK_STRING, cur, q, str_len);
       continue;
     }
 
@@ -422,30 +439,6 @@ typedef struct node_t {
   size_t args_count;
 } node_t;
 
-typedef enum {
-  DECLARATION_FUNCTION,
-  DECLARATION_GLOBAL_VARIABLE,
-} declaration_type_t;
-
-typedef struct declaration_t {
-  declaration_type_t declaration_type;
-  char *name;
-  size_t name_length;
-  type_t *type;
-
-  token_t *func_arg[MAX_ARGS];
-  size_t func_arg_count;
-
-  node_t *func_statements[MAX_STATEMENTS];
-  size_t func_statement_count;
-
-} declaration_t;
-
-declaration_t *new_declaration() {
-  declaration_t *d = calloc(1, sizeof(declaration_t));
-  return d;
-}
-
 typedef struct local_variable_t {
   struct local_variable_t *next;
   char *name;  // var's name
@@ -455,7 +448,7 @@ typedef struct local_variable_t {
   type_t *type;
 } local_variable_t;
 
-local_variable_t *local_variables;
+local_variable_t *local_variables = NULL;
 
 local_variable_t *find_local_variable(token_t *tok) {
   for (local_variable_t *var = local_variables; var; var = var->next) {
@@ -485,17 +478,36 @@ void add_local_variable(char *name, size_t len, type_t *ty) {
   lvar->offset = calc_total_local_variable_size(local_variables);
   local_variables = lvar;
 }
+typedef struct constant_string_t {
+  struct constant_string_t *next;
+  token_t *tok;
+  size_t id;
+} constant_string_t;
 
+constant_string_t *constant_string;
+size_t constant_string_count = 1;
+
+constant_string_t *add_constant_string(token_t *tok) {
+  constant_string_t *s = calloc(1, sizeof(constant_string_t));
+  s->next = constant_string;
+  s->tok = tok;
+  s->id = constant_string_count;
+  constant_string_count++;
+  constant_string = s;
+  return s;
+}
 typedef struct global_variable_t {
   struct global_variable_t *next;
   char *name;  // var's name
   size_t len;  // var name's length
   size_t size;
   type_t *type;
+
+  constant_string_t *constant_string;  // for string
 } global_variable_t;
 
 // global variable
-global_variable_t *global_variables;
+global_variable_t *global_variables = NULL;
 
 global_variable_t *find_global_variable(token_t *tok) {
   for (global_variable_t *var = global_variables; var; var = var->next) {
@@ -514,6 +526,46 @@ void add_global_variable(char *name, size_t len, type_t *ty) {
   var->type = ty;
   var->size = calc_size_of_type(ty);
   global_variables = var;
+}
+
+constant_string_t *add_global_variable_with_constant_string(char *name,
+                                                            size_t len,
+                                                            type_t *ty,
+                                                            token_t *tok) {
+  global_variable_t *var = calloc(1, sizeof(global_variable_t));
+  var->constant_string = add_constant_string(tok);
+  var->next = global_variables;
+  var->name = name;
+  var->len = len;
+  var->type = ty;
+  var->size = calc_size_of_type(ty);
+  global_variables = var;
+  return var->constant_string;
+}
+
+typedef enum {
+  DECLARATION_FUNCTION,
+  DECLARATION_GLOBAL_VARIABLE,
+} declaration_type_t;
+
+typedef struct declaration_t {
+  declaration_type_t declaration_type;
+  char *name;
+  size_t name_length;
+  type_t *type;
+
+  token_t *func_arg[MAX_ARGS];
+  size_t func_arg_count;
+
+  node_t *func_statements[MAX_STATEMENTS];
+  size_t func_statement_count;
+
+  constant_string_t *constant_string;
+} declaration_t;
+
+declaration_t *new_declaration() {
+  declaration_t *d = calloc(1, sizeof(declaration_t));
+  return d;
 }
 
 node_t *new_node() { return (node_t *)calloc(1, sizeof(node_t)); }
@@ -833,8 +885,8 @@ void add_type(node_t *node) {
 
 declaration_t *parse_declaration() {
   declaration_t *d = new_declaration();
-
   type_and_name_t *type_and_name = parse_type_and_name();
+  token_t *tok;
 
   if (consume(";")) {
     d->declaration_type = DECLARATION_GLOBAL_VARIABLE;
@@ -843,6 +895,21 @@ declaration_t *parse_declaration() {
     d->name_length = type_and_name->len;
     add_global_variable(type_and_name->name, type_and_name->len,
                         type_and_name->t);
+    return d;
+  }
+
+  if (consume("=")) {
+    d->declaration_type = DECLARATION_GLOBAL_VARIABLE;
+    d->type = type_and_name->t;
+    d->name = type_and_name->name;
+    d->name_length = type_and_name->len;
+    tok = consume_reserved(TK_STRING);
+    if (!tok) {
+      error("not supported yet");
+    }
+    d->constant_string = add_global_variable_with_constant_string(
+        type_and_name->name, type_and_name->len, type_and_name->t, tok);
+    expect(";");
     return d;
   }
 
@@ -1404,8 +1471,12 @@ void gen_declaration(declaration_t *dec) {
 
       print_str_len(stdout, dec->name, dec->name_length);
       printf(":\n");
-      printf("  .zero %zd\n", calc_size_of_type(dec->type));
-      printf("\n");
+      if (dec->constant_string) {
+        printf("  .word .LC%zd", dec->constant_string->id);
+      } else {
+        printf("  .zero %zd\n", calc_size_of_type(dec->type));
+      }
+      printf("\n\n");
       break;
     case DECLARATION_FUNCTION:
       update_indent();
@@ -1427,6 +1498,17 @@ void print_header() {
   printf("\n");
 }
 
+void print_constant_strings() {
+  constant_string_t *cur = constant_string;
+  while (cur) {
+    printf(".LC%zd:\n", cur->id);
+    printf("  .string ");
+    print_str_len(stdout, cur->tok->str, cur->tok->len);
+    printf("\n");
+    cur = cur->next;
+  }
+}
+
 int main(int argc, char **argv) {
   if (argc != 2) {
     error("argc = %d\n", argc);
@@ -1441,6 +1523,7 @@ int main(int argc, char **argv) {
     print_declaration(dec);
     gen_declaration(dec);
   }
+  print_constant_strings();
 
   return 0;
 }
