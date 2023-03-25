@@ -1,2 +1,6 @@
 fcc
 *.o
+test/*.exe
+test/*.cmp
+test/*.stdout
+test/*.s
