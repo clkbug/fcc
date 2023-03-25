@@ -1396,8 +1396,7 @@ void gen(node_t *node) {
         gen_pop("zero");
       }
       printf("%sj .Lfor%d\n", indent, for_index);
-      printf(".Lfor_end%d:\n", for_index);
-      printf("%s# for end\n", indent);
+      printf(".Lfor_end%d: # for end\n", for_index);
       break;
     }
     case NODE_BLOCK:
