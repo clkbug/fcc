@@ -518,9 +518,9 @@ typedef struct local_variable_t {
 
 local_variable_t *local_variables = NULL;
 
-local_variable_t *find_local_variable(token_t *tok) {
+local_variable_t *find_local_variable(char *name, size_t len) {
   for (local_variable_t *var = local_variables; var; var = var->next) {
-    if (var->len == tok->len && !memcmp(tok->str, var->name, var->len)) {
+    if (var->len == len && !memcmp(name, var->name, var->len)) {
       return var;
     }
   }
@@ -725,7 +725,7 @@ node_t *parse_exp(int min_bind_pow) {
       }
     } else {
       // variable
-      local_variable_t *lvar = find_local_variable(tok);
+      local_variable_t *lvar = find_local_variable(tok->str, tok->len);
       global_variable_t *gvar = find_global_variable(tok);
       if (lvar) {
         node->kind = NODE_LOCAL_VARIABLE;
@@ -827,7 +827,15 @@ node_t *parse_stmt() {
     node->len = type_and_name->len;
 
     add_local_variable(node->name, node->len, type_and_name->t);
-
+    if (consume("=")) {
+      local_variable_t *lvar = find_local_variable(node->name, node->len);
+      node->lhs = new_node();
+      node->lhs->kind = NODE_LOCAL_VARIABLE;
+      node->lhs->offset = lvar->offset;
+      node->lhs->type = lvar->type;
+      node->type = node->lhs->type;
+      node->rhs = parse_exp(0);
+    }
     expect(";");
   } else if (consume_reserved(TK_RETURN)) {
     node->kind = NODE_RETURN;
@@ -962,6 +970,15 @@ void add_type(node_t *node) {
       node->type = node->rhs->type->ptr_to;
       break;
     case NODE_VAR_DEC:
+      assert((node->lhs && node->rhs) || (!node->lhs && !node->rhs));
+      if (node->lhs) {
+        add_type(node->lhs);
+        node->type = node->lhs->type;
+        if (!node->rhs) {
+          error("node->lhs is not NULL but node->rhs is NULL");
+        }
+        add_type(node->rhs);
+      }
       break;  // var declaration does not have type
     default:
       error("in add_type, unknown node kind: %d", node->kind);
@@ -1264,9 +1281,6 @@ void gen(node_t *node) {
   }
 
   switch (node->kind) {
-    case NODE_VAR_DEC:
-      // do nothing
-      break;
     case NODE_ADD:
       gen(node->lhs);
       gen(node->rhs);
@@ -1427,6 +1441,24 @@ void gen(node_t *node) {
       }
       gen_push("t0");  // value again
       break;
+    case NODE_VAR_DEC:  // almost same as NODE_ASSIGN
+      if (node->rhs && node->lhs) {
+        gen(node->rhs);
+        gen_lval(node->lhs);
+        gen_pop("t1");  // address
+        gen_pop("t0");  // value
+
+        if (calc_size_of_type(node->type) == 4) {
+          printf("%ssw t0, 0(t1)\n", indent);
+        } else if (calc_size_of_type(node->type) == 1) {
+          printf("%sandi t0, t0, 0xFF\n", indent);
+          printf("%ssb t0, 0(t1)\n", indent);
+        } else {
+          error("invalid size of type: %zd\n", calc_size_of_type(node->type));
+        }
+        // not push value because it is not used
+      }
+      break;
     case NODE_RETURN:
       gen(node->rhs);
       gen_pop("a0");
@@ -1557,7 +1589,8 @@ void print_func_prologue(declaration_t *dec) {
   // push arguments
   for (size_t i = 0; i < dec->func_arg_count; i++) {
     char reg[] = "a0";
-    local_variable_t *var = find_local_variable(dec->func_arg[i]);
+    local_variable_t *var =
+        find_local_variable(dec->func_arg[i]->str, dec->func_arg[i]->len);
     reg[1] += i;
     fprintf(stderr, "push arg %s\n", reg);
     printf("%ssw %s, %d(fp)\n", indent, reg, var->offset);
