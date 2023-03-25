@@ -834,6 +834,7 @@ node_t *parse_stmt() {
     expect("(");
     if (!consume(";")) {
       node->init = parse_exp(0);
+      node->init->ignore = true;
       expect(";");
     }
     if (!consume(";")) {
@@ -842,6 +843,7 @@ node_t *parse_stmt() {
     }
     if (!consume(")")) {
       node->next = parse_exp(0);
+      node->next->ignore = true;
       expect(")");
     }
     node->clause_then = parse_stmt();
@@ -1409,20 +1411,25 @@ void gen(node_t *node) {
       if (node->init) {
         printf("%s# for init\n", indent);
         gen(node->init);
+      } else {
+        printf("%s# for init: empty\n", indent);
       }
-      gen_pop("zero");
       printf(".Lfor%d:\n", for_index);
       if (node->cond) {
         printf("%s# for cond\n", indent);
         gen(node->cond);
         gen_pop("t0");
         printf("%sbeqz t0, .Lfor_end%d\n", indent, for_index);
+      } else {
+        printf("%s# for cond: empty\n", indent);
       }
       printf("%s# for body\n", indent);
       gen(node->clause_then);
       if (node->next) {
+        printf("%s# for next\n", indent);
         gen(node->next);
-        gen_pop("zero");
+      } else {
+        printf("%s# for next: empty\n", indent);
       }
       printf("%sj .Lfor%d\n", indent, for_index);
       printf(".Lfor_end%d: # for end\n", for_index);

@@ -31,5 +31,16 @@ int main() {
     }
   }
 
+  i = 0;
+  for (; i < 26; i = i + 1) {
+    putchar('a' + i);
+  }
+
+  i = 0;
+  for (; i < 26;) {
+    i = i + 1;
+  }
+  putchar('a' + i);
+
   return 0;
 }
