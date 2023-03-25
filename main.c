@@ -236,6 +236,9 @@ token_t *tokenize(char *p) {
           case 'n':
             cur->num = '\n';
             break;
+          case 't':
+            cur->num = '\t';
+            break;
           case '\\':
             cur->num = '\\';
             break;
