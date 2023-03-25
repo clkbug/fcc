@@ -494,7 +494,8 @@ typedef struct local_variable_t {
   char *name;  // var's name
   size_t len;  // var name's length
   size_t size;
-  int offset;  // from fp
+  size_t size_on_stack;  // aligned size
+  int offset;            // from fp
   type_t *type;
 } local_variable_t;
 
@@ -509,10 +510,10 @@ local_variable_t *find_local_variable(token_t *tok) {
   return NULL;
 }
 
-size_t calc_total_local_variable_size(local_variable_t *var) {
+size_t calc_total_local_variable_size_on_stack(local_variable_t *var) {
   size_t size = 0;
   while (var) {
-    size += var->size;
+    size += var->size_on_stack;
     var = var->next;
   }
   return size;
@@ -525,7 +526,8 @@ void add_local_variable(char *name, size_t len, type_t *ty) {
   lvar->len = len;
   lvar->type = ty;
   lvar->size = calc_size_of_type(ty);
-  lvar->offset = calc_total_local_variable_size(local_variables);
+  lvar->size_on_stack = (lvar->size + 3) / 4 * 4;  // align 4
+  lvar->offset = calc_total_local_variable_size_on_stack(local_variables);
   local_variables = lvar;
 }
 typedef struct constant_string_t {
@@ -1216,15 +1218,13 @@ void gen_lval(node_t *node) {
 }
 
 void gen_alloc_stack(local_variable_t *lvar) {
-  size_t bytes = calc_total_local_variable_size(lvar);
-  fprintf(stderr, "stack alloc %zd\n", bytes);
-  printf("%saddi sp, sp, -%zd\n", indent, bytes);
+  size_t bytes = calc_total_local_variable_size_on_stack(lvar);
+  printf("%saddi sp, sp, -%zd\t\t# stack alloc %zd B\n", indent, bytes, bytes);
 }
 
 void gen_free_stack(local_variable_t *lvar) {
-  size_t bytes = calc_total_local_variable_size(lvar);
-  fprintf(stderr, "stack free %zd\n", bytes);
-  printf("%saddi sp, sp, %zd\n", indent, bytes);
+  size_t bytes = calc_total_local_variable_size_on_stack(lvar);
+  printf("%saddi sp, sp, %zd\t\t# stack free %zd B\n", indent, bytes, bytes);
 }
 
 void gen(node_t *node) {
@@ -1550,6 +1550,7 @@ void gen_declaration(declaration_t *dec) {
         gen(dec->func_statements[i]);
       }
       print_func_epilogue(dec);
+      local_variables = NULL;
       break;
     default:
       error("unreachable! invalid declaration");
