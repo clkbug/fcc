@@ -172,6 +172,15 @@ token_t *tokenize(char *p) {
       continue;
     }
 
+    if (strncmp(p, "/*", 2) == 0) {
+      char *q = strstr(p + 2, "*/");
+      if (!q) {
+        error("unclosed comment");
+      }
+      p = q + 2;
+      continue;
+    }
+
     if (2 <= strlen(p)) {
       if (memcmp(p, "==", 2) == 0 || memcmp(p, "!=", 2) == 0 ||
           memcmp(p, "<=", 2) == 0 || memcmp(p, ">=", 2) == 0) {
