@@ -162,6 +162,8 @@ assert 1 "int main() { char c; c = 1; return c; }"
 assert 97 "int main() { char c; c = 'a'; return c; }"
 assert 32 "int main() { return 'a' - 'A'; }"
 assert 7 "int main() { return 'a' - 'Z'; }"
+assert 92 "int main() { return '\\\\'; }" # シェルの仕様はよくわからないがバックスラッシュは2つ書かないといけない
+assert 10 "int main() { return '\n'; }"
 
 
 # string

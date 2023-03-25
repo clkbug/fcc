@@ -220,8 +220,32 @@ token_t *tokenize(char *p) {
 
     if (*p == '\'') {
       p++;
-      cur = new_token(TK_INT, cur, p, 0);
-      cur->num = *p;
+      if (*p == '\\') {
+        p++;
+        cur = new_token(TK_INT, cur, p, 0);
+        switch (*p) {
+          case 'a':
+            cur->num = '\a';
+            break;
+          case 'b':
+            cur->num = '\b';
+            break;
+          case 'f':
+            cur->num = '\f';
+            break;
+          case 'n':
+            cur->num = '\n';
+            break;
+          case '\\':
+            cur->num = '\\';
+            break;
+          default:
+            error("failed to tokenize at '%c'\n'\\?...", *p);
+        }
+      } else {
+        cur = new_token(TK_INT, cur, p, 0);
+        cur->num = *p;
+      }
       p++;
       if (*p != '\'') {
         error("failed to tokenize at '%c'\n'x?...", *p);
@@ -1159,7 +1183,9 @@ void gen(node_t *node);
 void gen_lval(node_t *node) {
   if (node->kind == NODE_LOCAL_VARIABLE) {
     // local variable address
-    printf("%saddi t0, fp, %d\n", indent, node->offset);
+    printf("%saddi t0, fp, %d\t\t# local variable: ", indent, node->offset);
+    print_str_len(stdout, node->name, node->len);
+    printf("\n");
     gen_push("t0");
   } else if (node->kind == NODE_GLOBAL_VARIABLE) {
     // global variable address
