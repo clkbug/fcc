@@ -915,6 +915,7 @@ void add_type(node_t *node) {
       node->type = new_type_with(TYPE_VOID, NULL);
       break;
     case NODE_LOCAL_VARIABLE:
+    case NODE_GLOBAL_VARIABLE:
       // typed in parsing
       if (node->type == NULL) {
         error("type is not set");

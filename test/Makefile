@@ -12,6 +12,7 @@ SRCS := \
 	function.c \
 	pointer.c \
 	array.c \
+	global_variable.c \
 
 
 REF_EXE := $(SRCS:.c=.ref.exe)
