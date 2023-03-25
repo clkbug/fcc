@@ -11,8 +11,8 @@ TMP_DIR=/tmp
 assert() {
   expected="$1"
   input="$2"
-
-  ./fcc "$input" > /tmp/tmp.s
+  echo "$input" > /tmp/tmp.c
+  ./fcc /tmp/tmp.c > /tmp/tmp.s
   if [ $? -ne 0 ]; then
     echo "'./fcc $input' failed"
     exit 1

@@ -1,14 +1,11 @@
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-int label_index = 0;
-
-int gen_label_index() { return label_index++; }
 
 void error(char *fmt, ...) {
   va_list ap;
@@ -17,6 +14,32 @@ void error(char *fmt, ...) {
   fprintf(stderr, "\n");
   exit(1);
 }
+
+char *read_file(char *path) {
+  FILE *fp = fopen(path, "r");
+  if (!fp) error("cannot open %s: %s", path, strerror(errno));
+
+  // check file size
+  if (fseek(fp, 0, SEEK_END) == -1)
+    error("%s: fseek: %s", path, strerror(errno));
+  size_t size = ftell(fp);
+  if (fseek(fp, 0, SEEK_SET) == -1)
+    error("%s: fseek: %s", path, strerror(errno));
+
+  // read file
+  char *buf = calloc(1, size + 2);
+  fread(buf, size, 1, fp);
+
+  // "\n\0" is added to the end of the file
+  if (size == 0 || buf[size - 1] != '\n') buf[size++] = '\n';
+  buf[size] = '\0';
+  fclose(fp);
+  return buf;
+}
+
+int label_index = 0;
+
+int gen_label_index() { return label_index++; }
 
 typedef enum {
   TK_INVALID,
@@ -1514,7 +1537,8 @@ int main(int argc, char **argv) {
     error("argc = %d\n", argc);
     return 1;
   }
-  token = tokenize(argv[1]);
+
+  token = tokenize(read_file(argv[1]));
   assert(!at_eof());
 
   print_header();
