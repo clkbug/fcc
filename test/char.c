@@ -51,6 +51,7 @@ int test3() {
   int sum;
   int i;
   sum = 0;
+  // check char overflow
   for (c = 0; c < 10; c = c + 257) {
     sum = sum + c;
   }
@@ -62,6 +63,7 @@ int test3() {
 int test4() {
   char a[26];
   int i;
+  // check int to char conversion
   for (i = 0; i < 26; i = i + 1) {
     a[i] = 'a' + i;
   }

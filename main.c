@@ -164,6 +164,14 @@ token_t *tokenize(char *p) {
       continue;
     }
 
+    if (strncmp(p, "//", 2) == 0) {
+      p += 2;
+      while (*p != '\n') {
+        p++;
+      }
+      continue;
+    }
+
     if (2 <= strlen(p)) {
       if (memcmp(p, "==", 2) == 0 || memcmp(p, "!=", 2) == 0 ||
           memcmp(p, "<=", 2) == 0 || memcmp(p, ">=", 2) == 0) {
