@@ -903,10 +903,17 @@ void add_type(node_t *node) {
       if (node->init) {
         add_type(node->init);  // only for NODE_FOR
       }
-      add_type(node->cond);
-      add_type(node->clause_then);
+      if (node->cond) {
+        add_type(node->cond);
+      }
+      if (node->clause_then) {
+        add_type(node->clause_then);
+      }
       if (node->clause_else) {
         add_type(node->clause_else);  // only for NODE_IF
+      }
+      if (node->next) {
+        add_type(node->next);
       }
       node->type = new_type_with(TYPE_VOID, NULL);
       break;
@@ -1250,10 +1257,14 @@ void gen(node_t *node) {
       gen_pop("t1");  // lhs
       if (node->lhs->type->ty == TYPE_POITNER ||
           node->lhs->type->ty == TYPE_ARRAY) {
-        printf("%sslli t0, t0, 2\n", indent);  // rhs * 4
+        printf("%sli t2, %zd\n", indent,
+               calc_size_of_type(node->lhs->type->ptr_to));
+        printf("%smul t0, t0, t2\n", indent);
       } else if (node->rhs->type->ty == TYPE_POITNER ||
                  node->rhs->type->ty == TYPE_ARRAY) {
-        printf("%sslli t1, t1, 2\n", indent);  // lhs * 4
+        printf("%sli t2, %zd\n", indent,
+               calc_size_of_type(node->lhs->type->ptr_to));
+        printf("%smul t1, t1, t2\n", indent);
       }
       printf("%sadd t0, t1, t0\n", indent);
       gen_push("t0");
@@ -1359,7 +1370,13 @@ void gen(node_t *node) {
       gen_lval(node);
       if (node->type->ty != TYPE_ARRAY) {
         gen_pop("t0");
-        printf("%slw t0, 0(t0)\n", indent);
+        if (calc_size_of_type(node->type) == 4) {
+          printf("%slw t0, 0(t0)\n", indent);
+        } else if (calc_size_of_type(node->type) == 1) {
+          printf("%slb t0, 0(t0)\n", indent);
+        } else {
+          error("invalid size of type: %zd\n", calc_size_of_type(node->type));
+        }
         gen_push("t0");
       }
       break;
@@ -1367,7 +1384,13 @@ void gen(node_t *node) {
       gen_lval(node);
       if (node->type->ty != TYPE_ARRAY) {
         gen_pop("t0");
-        printf("%slw t0, 0(t0)\n", indent);
+        if (calc_size_of_type(node->type) == 4) {
+          printf("%slw t0, 0(t0)\n", indent);
+        } else if (calc_size_of_type(node->type) == 1) {
+          printf("%slb t0, 0(t0)\n", indent);
+        } else {
+          error("invalid size of type: %zd\n", calc_size_of_type(node->type));
+        }
         gen_push("t0");
       }
       break;
@@ -1376,7 +1399,15 @@ void gen(node_t *node) {
       gen_lval(node->lhs);
       gen_pop("t1");  // address
       gen_pop("t0");  // value
-      printf("%ssw t0, 0(t1)\n", indent);
+
+      if (calc_size_of_type(node->type) == 4) {
+        printf("%ssw t0, 0(t1)\n", indent);
+      } else if (calc_size_of_type(node->type) == 1) {
+        printf("%sandi t0, t0, 0xFF\n", indent);
+        printf("%ssb t0, 0(t1)\n", indent);
+      } else {
+        error("invalid size of type: %zd\n", calc_size_of_type(node->type));
+      }
       gen_push("t0");  // value again
       break;
     case NODE_RETURN:
