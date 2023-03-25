@@ -11,6 +11,7 @@ $(TARGET): $(OBJS)
 
 .PHONY: test clean debug
 test: $(TARGET)
+	$(MAKE) -C test
 	./test/test
 
 clean:
