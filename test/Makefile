@@ -9,6 +9,9 @@ SRCS := \
 	local_variable_long_name.c \
 	loop_while.c \
 	loop_for.c \
+	function.c \
+	pointer.c \
+	array.c \
 
 
 REF_EXE := $(SRCS:.c=.ref.exe)
@@ -24,11 +27,11 @@ FCC := ../fcc
 GCC := /home/fukuda/opt/gcc/riscv32-unknown-elf-rv32im/bin/riscv32-unknown-elf-gcc
 QEMU := qemu-riscv32
 
-all: $(TEST_CMP_RESULT) $(TEST_STDOUT) $(TEST_ASM) $(TEST_EXE) $(REF_STDOUT) $(REF_EXE)
+all: $(TEST_CMP_RESULT) $(REF_STDOUT) $(REF_EXE) $(TEST_STDOUT) $(TEST_ASM) $(TEST_EXE)
 	@echo all tests passed!
 
 # .PHONY: $(TEST_CMP_RESULT)
-%.cmp: %.test.stdout %.ref.stdout
+%.cmp: %.ref.stdout %.test.stdout
 	diff $^ >$@
 
 %.ref.stdout: %.ref.exe

@@ -897,6 +897,7 @@ void add_type(node_t *node) {
       break;
     case NODE_IF:
     case NODE_WHILE:
+    case NODE_FOR:
       if (node->init) {
         add_type(node->init);  // only for NODE_FOR
       }
@@ -915,6 +916,9 @@ void add_type(node_t *node) {
       break;
     case NODE_LOCAL_VARIABLE:
       // typed in parsing
+      if (node->type == NULL) {
+        error("type is not set");
+      }
       break;
     case NODE_CALL:
       for (int i = 0; i < node->args_count; i++) {
@@ -930,8 +934,10 @@ void add_type(node_t *node) {
       add_type(node->rhs);
       node->type = node->rhs->type->ptr_to;
       break;
+    case NODE_VAR_DEC:
+      break;  // var declaration does not have type
     default:
-      break;
+      error("in add_type, unknown node kind: %d", node->kind);
   }
 }
 
