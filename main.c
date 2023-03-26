@@ -37,14 +37,21 @@ char *read_file(char *path) {
   return buf;
 }
 
+int last_loop_label_index = 0;
 int label_index = 0;
 
+int gen_loop_label_index() {
+  last_loop_label_index = label_index;
+  return label_index++;
+}
 int gen_label_index() { return label_index++; }
 
 typedef enum {
   TK_INVALID,
   TK_RESERVED,
   TK_RETURN,
+  TK_BREAK,
+  TK_CONTINUE,
   TK_IF,
   TK_ELSE,
   TK_WHILE,
@@ -217,6 +224,10 @@ token_t *tokenize(char *p) {
         cur->kind = TK_WHILE;
       } else if (strncmp(cur->str, "for", 3) == 0) {
         cur->kind = TK_FOR;
+      } else if (strncmp(cur->str, "break", 5) == 0) {
+        cur->kind = TK_BREAK;
+      } else if (strncmp(cur->str, "continue", 8) == 0) {
+        cur->kind = TK_CONTINUE;
       } else if (strncmp(cur->str, "int", 3) == 0) {
         cur->kind = TK_TYPE;
       } else if (strncmp(cur->str, "char", 4) == 0) {
@@ -484,6 +495,8 @@ typedef enum {
   NODE_LOCAL_VARIABLE,
   NODE_GLOBAL_VARIABLE,
   NODE_RETURN,
+  NODE_BREAK,
+  NODE_CONTINUE,
   NODE_IF,
   NODE_WHILE,
   NODE_FOR,
@@ -897,6 +910,12 @@ node_t *parse_stmt() {
     node->kind = NODE_RETURN;
     node->rhs = parse_exp(0);
     expect(";");
+  } else if (consume_reserved(TK_BREAK)) {
+    node->kind = NODE_BREAK;
+    expect(";");
+  } else if (consume_reserved(TK_CONTINUE)) {
+    node->kind = NODE_CONTINUE;
+    expect(";");
   } else if (consume_reserved(TK_IF)) {
     node->kind = NODE_IF;
     expect("(");
@@ -980,6 +999,10 @@ void add_type(node_t *node) {
       break;
     case NODE_RETURN:
       add_type(node->rhs);
+      node->type = new_type_with(TYPE_VOID, NULL);
+      break;
+    case NODE_BREAK:
+    case NODE_CONTINUE:
       node->type = new_type_with(TYPE_VOID, NULL);
       break;
     case NODE_IF:
@@ -1181,6 +1204,12 @@ void print_node(node_t *node) {
       fprintf(stderr, "return ");
       print_node(node->rhs);
       fprintf(stderr, ";");
+      break;
+    case NODE_BREAK:
+      fprintf(stderr, "break;");
+      break;
+    case NODE_CONTINUE:
+      fprintf(stderr, "continue;");
       break;
     case NODE_IF:
       fprintf(stderr, "if (");
@@ -1543,60 +1572,68 @@ void gen(node_t *node) {
       gen_pop("fp");
       printf("%sret\n", indent);
       break;
+    case NODE_BREAK:
+      printf("%sj .Lloop_end%d\n", indent, last_loop_label_index);
+      break;
+    case NODE_CONTINUE:
+      printf("%sj .Lloop_next%d\n", indent, last_loop_label_index);
+      break;
     case NODE_IF:
       gen(node->cond);
       gen_pop("t0");
-      int end_index = gen_label_index();
-      int else_index = gen_label_index();
-      printf("%sbeqz t0, .Lelse%d\n", indent, else_index);
+      int if_index = gen_label_index();
+      printf("%sbeqz t0, .Lelse%d\n", indent, if_index);
       gen(node->clause_then);
-      printf("%sj .Lifend%d\n", indent, end_index);
-      printf(".Lelse%d:\n", else_index);
+      printf("%sj .Lifend%d\n", indent, if_index);
+      printf(".Lelse%d:\n", if_index);
       if (node->clause_else) {
         gen(node->clause_else);
       }
-      printf(".Lifend%d:\n", end_index);
+      printf(".Lifend%d:\n", if_index);
       break;
     case NODE_WHILE: {
-      int while_index = gen_label_index();
-      int while_end_index = gen_label_index();
-      printf(".Lwhile%d:\n", while_index);
+      int old_loop_label_index = last_loop_label_index;
+      int while_index = gen_loop_label_index();
+      printf(".Lloop_cond%d: # while loop start\n", while_index);
       gen(node->cond);
       gen_pop("t0");
-      printf("%sbeqz t0, .Lwhile_end%d\n", indent, while_end_index);
+      printf("%sbeqz t0, .Lloop_end%d\n", indent, while_index);
       gen(node->clause_then);
-      printf("%sj .Lwhile%d\n", indent, while_index);
-      printf(".Lwhile_end%d:\n", while_end_index);
+      printf(".Lloop_next%d: # while loop next (empty)\n",
+             while_index);  // empty, but needed for break/continue
+      printf("%sj .Lloop_cond%d\n", indent, while_index);
+      printf(".Lloop_end%d: # while loop end\n", while_index);
+      last_loop_label_index = old_loop_label_index;
       break;
     }
     case NODE_FOR: {
+      int old_loop_label_index = last_loop_label_index;
+      int for_index = gen_loop_label_index();
       printf("%s# for start\n", indent);
-      int for_index = gen_label_index();
       if (node->init) {
         printf("%s# for init\n", indent);
         gen(node->init);
       } else {
         printf("%s# for init: empty\n", indent);
       }
-      printf(".Lfor%d:\n", for_index);
+      printf(".Lloop_cond%d: # for cond\n", for_index);
       if (node->cond) {
         printf("%s# for cond\n", indent);
         gen(node->cond);
         gen_pop("t0");
-        printf("%sbeqz t0, .Lfor_end%d\n", indent, for_index);
+        printf("%sbeqz t0, .Lloop_end%d\n", indent, for_index);
       } else {
         printf("%s# for cond: empty\n", indent);
       }
       printf("%s# for body\n", indent);
       gen(node->clause_then);
+      printf(".Lloop_next%d: # for next\n", for_index);
       if (node->next) {
-        printf("%s# for next\n", indent);
         gen(node->next);
-      } else {
-        printf("%s# for next: empty\n", indent);
       }
-      printf("%sj .Lfor%d\n", indent, for_index);
-      printf(".Lfor_end%d: # for end\n", for_index);
+      printf("%sj .Lloop_cond%d\n", indent, for_index);
+      printf(".Lloop_end%d: # for end\n", for_index);
+      last_loop_label_index = old_loop_label_index;
       break;
     }
     case NODE_BLOCK:
