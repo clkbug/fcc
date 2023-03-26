@@ -20,6 +20,7 @@ SRCS := \
 	loop_break_and_continue.c \
 	prime.c \
 	function_void.c \
+	function_arg.c \
 	# post_increment.c 	\
 
 

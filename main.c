@@ -410,6 +410,8 @@ type_and_name_t *parse_type_and_name() {
       a->t->ty = TYPE_INT;
     } else if (tok->len == 4 && memcmp(tok->str, "char", 4) == 0) {
       a->t->ty = TYPE_CHAR;
+    } else if (tok->len == 6 && memcmp(tok->str, "size_t", 6) == 0) {
+      a->t->ty = TYPE_INT;
     } else if (tok->len == 4 && memcmp(tok->str, "void", 4) == 0) {
       a->t->ty = TYPE_VOID;
     } else {
@@ -443,13 +445,31 @@ type_and_name_t *parse_type_and_name() {
             error("call f(x y)? needs comma?\n");
           }
         }
-        if (!consume_reserved(TK_TYPE)) {
+        tok = consume_reserved(TK_TYPE);
+        if (!tok) {
           error("expected TK_TYPE in function's parameters");
         }
-        tok = consume_ident();
         a->t->args[i] = new_type();
-        a->t->args[i]->ty = TYPE_INT;
+        if (tok->len == 3 && memcmp(tok->str, "int", 3) == 0) {
+          a->t->args[i]->ty = TYPE_INT;
+        } else if (tok->len == 4 && memcmp(tok->str, "char", 4) == 0) {
+          a->t->args[i]->ty = TYPE_CHAR;
+        } else if (tok->len == 6 && memcmp(tok->str, "size_t", 6) == 0) {
+          a->t->args[i]->ty = TYPE_INT;
+        } else if (tok->len == 4 && memcmp(tok->str, "void", 4) == 0) {
+          a->t->args[i]->ty = TYPE_VOID;
+        } else {
+          error("unknown type: %s", tok->str);
+        }
+
+        while (!(tok = consume_ident_or_fail())) {
+          assert(consume("*"));
+          a->t->args[i] = new_type_with(TYPE_POITNER, a->t->args[i]);
+        }
+
+        // tok = consume_ident();
         a->t->arg_names[i] = tok;
+
         a->t->arg_count = i + 1;
       }
     }
