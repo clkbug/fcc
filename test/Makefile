@@ -21,6 +21,7 @@ SRCS := \
 	prime.c \
 	function_void.c \
 	function_arg.c \
+	gcd.c \
 	# post_increment.c 	\
 
 

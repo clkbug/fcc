@@ -995,6 +995,10 @@ void add_type(node_t *node) {
     case NODE_CONST_STRING:
       node->type = new_type_with(TYPE_POITNER, new_type_with(TYPE_CHAR, NULL));
       break;
+    case NODE_MINUS:
+      add_type(node->rhs);
+      node->type = node->rhs->type;
+      break;
     case NODE_ADD:
     case NODE_SUB:
       add_type(node->lhs);
@@ -1411,6 +1415,12 @@ void gen(node_t *node) {
     case NODE_CONST_STRING:
       printf("%slui t0, %%hi(.LC%zd)\n", indent, node->const_str->id);
       printf("%saddi t0, t0, %%lo(.LC%zd)\n", indent, node->const_str->id);
+      gen_push("t0");
+      break;
+    case NODE_MINUS:
+      gen(node->rhs);
+      gen_pop("t0");
+      printf("%ssub t0, zero, t0\n", indent);
       gen_push("t0");
       break;
     case NODE_ADD:
