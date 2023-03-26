@@ -1,12 +1,9 @@
-char* global_variable = "global variable";
+char* global_variable = "global variable\n";
 
 int main() {
-  char* local_variable = "local variable";
+  char* local_variable = "local variable\n";
   puts(global_variable);
-  putchar('\n');
-  puts("Hello, world!");
-  putchar('\n');
+  puts("Hello, world!\n");
   puts(local_variable);
-  putchar('\n');
   return 0;
 }
