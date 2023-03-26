@@ -189,10 +189,10 @@ token_t *tokenize(char *p) {
         continue;
       }
     }
-    if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '>' ||
-        *p == '<' || *p == '(' || *p == ')' || *p == '[' || *p == ']' ||
-        *p == '=' || *p == ';' || *p == '{' || *p == '}' || *p == ',' ||
-        *p == '&') {
+    if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '%' ||
+        *p == '>' || *p == '<' || *p == '(' || *p == ')' || *p == '[' ||
+        *p == ']' || *p == '=' || *p == ';' || *p == '{' || *p == '}' ||
+        *p == ',' || *p == '&') {
       cur = new_token(TK_RESERVED, cur, p, 1);
       p++;
       continue;
@@ -470,6 +470,7 @@ typedef enum {
   NODE_SUB,
   NODE_MUL,
   NODE_DIV,
+  NODE_MOD,
   NODE_EQ,
   NODE_NEQ,
   NODE_LT,
@@ -776,6 +777,11 @@ node_t *parse_exp(int min_bind_pow) {
         return node;
       }
       node = parse_follower(node, "/", DIV_RIGHT_BINDING_POWER, NODE_DIV);
+    } else if (peek("%")) {
+      if (DIV_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      node = parse_follower(node, "%", DIV_RIGHT_BINDING_POWER, NODE_MOD);
     } else if (peek("<")) {
       if (COMPARE_LEFT_BINDING_POWER <= min_bind_pow) {
         return node;
@@ -920,6 +926,7 @@ void add_type(node_t *node) {
       break;
     case NODE_MUL:
     case NODE_DIV:
+    case NODE_MOD:
     case NODE_LT:
     case NODE_LE:
     case NODE_GT:
@@ -1093,6 +1100,9 @@ void print_node(node_t *node) {
       break;
     case NODE_DIV:
       print_node_binop(node, "/");
+      break;
+    case NODE_MOD:
+      print_node_binop(node, "%");
       break;
     case NODE_LT:
       print_node_binop(node, "<");
@@ -1348,6 +1358,14 @@ void gen(node_t *node) {
       gen_pop("t0");
       gen_pop("t1");
       printf("%sdiv t0, t1, t0\n", indent);
+      gen_push("t0");
+      break;
+    case NODE_MOD:
+      gen(node->lhs);
+      gen(node->rhs);
+      gen_pop("t0");
+      gen_pop("t1");
+      printf("%srem t0, t1, t0\n", indent);
       gen_push("t0");
       break;
     case NODE_LT:
