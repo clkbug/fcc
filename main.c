@@ -443,6 +443,25 @@ type_and_name_t *parse_type_and_name() {
   return a;
 }
 
+typedef struct constant_string_t {
+  struct constant_string_t *next;
+  token_t *tok;
+  size_t id;
+} constant_string_t;
+
+constant_string_t *constant_string;
+size_t constant_string_count = 1;
+
+constant_string_t *add_constant_string(token_t *tok) {
+  constant_string_t *s = calloc(1, sizeof(constant_string_t));
+  s->next = constant_string;
+  s->tok = tok;
+  s->id = constant_string_count;
+  constant_string_count++;
+  constant_string = s;
+  return s;
+}
+
 typedef enum {
   NODE_INVALID,
   NODE_VAR_DEC,
@@ -458,6 +477,7 @@ typedef enum {
   NODE_GT,
   NODE_GE,
   NODE_NUM,
+  NODE_CONST_STRING,
   NODE_ASSIGN,
   NODE_LOCAL_VARIABLE,
   NODE_GLOBAL_VARIABLE,
@@ -504,6 +524,9 @@ typedef struct node_t {
   // for 'call'
   struct node_t *args[MAX_ARGS];
   size_t args_count;
+
+  // for 'const string'
+  constant_string_t *const_str;
 } node_t;
 
 typedef struct local_variable_t {
@@ -547,24 +570,7 @@ void add_local_variable(char *name, size_t len, type_t *ty) {
   lvar->offset = calc_total_local_variable_size_on_stack(local_variables);
   local_variables = lvar;
 }
-typedef struct constant_string_t {
-  struct constant_string_t *next;
-  token_t *tok;
-  size_t id;
-} constant_string_t;
 
-constant_string_t *constant_string;
-size_t constant_string_count = 1;
-
-constant_string_t *add_constant_string(token_t *tok) {
-  constant_string_t *s = calloc(1, sizeof(constant_string_t));
-  s->next = constant_string;
-  s->tok = tok;
-  s->id = constant_string_count;
-  constant_string_count++;
-  constant_string = s;
-  return s;
-}
 typedef struct global_variable_t {
   struct global_variable_t *next;
   char *name;  // var's name
@@ -685,6 +691,7 @@ node_t *parse_follower(node_t *leader, char *op, int right_binding_power,
 
 node_t *parse_exp(int min_bind_pow) {
   node_t *node = new_node();
+  token_t *tok;
 
   // parse leading operator
   if (consume("-")) {
@@ -704,8 +711,11 @@ node_t *parse_exp(int min_bind_pow) {
     expect(")");
   } else if (is_int()) {
     node = parse_int();
+  } else if ((tok = consume_reserved(TK_STRING))) {
+    node->kind = NODE_CONST_STRING;
+    node->const_str = add_constant_string(tok);
   } else {
-    token_t *tok = consume_ident();
+    tok = consume_ident();
     if (consume("(")) {
       // function call
       node->kind = NODE_CALL;
@@ -892,6 +902,9 @@ void add_type(node_t *node) {
   switch (node->kind) {
     case NODE_NUM:
       node->type = new_type_with(TYPE_INT, NULL);
+      break;
+    case NODE_CONST_STRING:
+      node->type = new_type_with(TYPE_POITNER, new_type_with(TYPE_CHAR, NULL));
       break;
     case NODE_ADD:
     case NODE_SUB:
@@ -1102,6 +1115,10 @@ void print_node(node_t *node) {
     case NODE_NUM:
       fprintf(stderr, "%d", node->val);
       break;
+    case NODE_CONST_STRING:
+      print_str_len(stderr, node->const_str->tok->str,
+                    node->const_str->tok->len);
+      break;
     case NODE_LOCAL_VARIABLE:
     case NODE_GLOBAL_VARIABLE: {
       print_str_len(stderr, node->name, node->len);
@@ -1272,15 +1289,17 @@ void gen(node_t *node) {
   inc_depth();
   print_node(node);
   fprintf(stderr, "\n");
-  if (node->kind == NODE_NUM) {
-    // push
-    printf("%sli t0, %d\n", indent, node->val);
-    gen_push("t0");
-    dec_depth();
-    return;
-  }
 
   switch (node->kind) {
+    case NODE_NUM:
+      printf("%sli t0, %d\n", indent, node->val);
+      gen_push("t0");
+      break;
+    case NODE_CONST_STRING:
+      printf("%slui t0, %%hi(.LC%zd)\n", indent, node->const_str->id);
+      printf("%saddi t0, t0, %%lo(.LC%zd)\n", indent, node->const_str->id);
+      gen_push("t0");
+      break;
     case NODE_ADD:
       gen(node->lhs);
       gen(node->rhs);

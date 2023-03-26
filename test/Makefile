@@ -15,7 +15,7 @@ SRCS := \
 	global_variable.c \
 	char.c \
 	local_variable_initialization.c \
-	# string.c \
+	string.c \
 
 
 REF_EXE := $(SRCS:.c=.ref.exe)
