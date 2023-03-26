@@ -410,6 +410,8 @@ type_and_name_t *parse_type_and_name() {
       a->t->ty = TYPE_INT;
     } else if (tok->len == 4 && memcmp(tok->str, "char", 4) == 0) {
       a->t->ty = TYPE_CHAR;
+    } else if (tok->len == 4 && memcmp(tok->str, "void", 4) == 0) {
+      a->t->ty = TYPE_VOID;
     } else {
       error("unknown type: %s", tok->str);
     }
@@ -908,8 +910,10 @@ node_t *parse_stmt() {
     expect(";");
   } else if (consume_reserved(TK_RETURN)) {
     node->kind = NODE_RETURN;
-    node->rhs = parse_exp(0);
-    expect(";");
+    if (!consume(";")) {
+      node->rhs = parse_exp(0);
+      expect(";");
+    }
   } else if (consume_reserved(TK_BREAK)) {
     node->kind = NODE_BREAK;
     expect(";");
@@ -998,7 +1002,9 @@ void add_type(node_t *node) {
       node->type = node->lhs->type;
       break;
     case NODE_RETURN:
-      add_type(node->rhs);
+      if (node->rhs) {
+        add_type(node->rhs);
+      }
       node->type = new_type_with(TYPE_VOID, NULL);
       break;
     case NODE_BREAK:
@@ -1124,6 +1130,12 @@ declaration_t *parse_declaration() {
     d->func_statement_count = i + 1;
   }
 
+  if (d->func_statements[d->func_statement_count - 1]->kind != NODE_RETURN) {
+    d->func_statements[d->func_statement_count] = new_node();
+    d->func_statements[d->func_statement_count]->kind = NODE_RETURN;
+    d->func_statement_count++;
+  }
+
   return d;
 }
 
@@ -1202,7 +1214,9 @@ void print_node(node_t *node) {
       break;
     case NODE_RETURN:
       fprintf(stderr, "return ");
-      print_node(node->rhs);
+      if (node->rhs) {
+        print_node(node->rhs);
+      }
       fprintf(stderr, ";");
       break;
     case NODE_BREAK:
@@ -1566,8 +1580,10 @@ void gen(node_t *node) {
       }
       break;
     case NODE_RETURN:
-      gen(node->rhs);
-      gen_pop("a0");
+      if (node->rhs) {
+        gen(node->rhs);
+        gen_pop("a0");
+      }
       gen_free_stack(local_variables);
       gen_pop("fp");
       printf("%sret\n", indent);
