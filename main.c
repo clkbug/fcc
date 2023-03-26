@@ -183,7 +183,8 @@ token_t *tokenize(char *p) {
 
     if (2 <= strlen(p)) {
       if (memcmp(p, "==", 2) == 0 || memcmp(p, "!=", 2) == 0 ||
-          memcmp(p, "<=", 2) == 0 || memcmp(p, ">=", 2) == 0) {
+          memcmp(p, "<=", 2) == 0 || memcmp(p, ">=", 2) == 0 ||
+          memcmp(p, "++", 2) == 0 || memcmp(p, "--", 2) == 0) {
         cur = new_token(TK_RESERVED, cur, p, 2);
         p += 2;
         continue;
@@ -657,9 +658,11 @@ node_t *parse_int() {
 // binding power
 // high is prior
 const int INDEX_LEFT_BINDING_POW = 201;
+const int POST_INC_LEFT_BINDING_POW = 201;
 const int NEG_RIGHT_BIND_POW = 151;
 const int ADDR_RIGHT_BIND_POW = 151;
 const int DEREF_RIGHT_BIND_POW = 151;
+const int PRE_INC_RIGHT_BIND_POW = 151;
 const int MUL_LEFT_BINDING_POWER = 130;
 const int MUL_RIGHT_BINDING_POWER = 131;
 const int DIV_LEFT_BINDING_POWER = 130;
@@ -707,6 +710,28 @@ node_t *parse_exp(int min_bind_pow) {
     node_t *follower = parse_exp(DEREF_RIGHT_BIND_POW);
     node->kind = NODE_DEREF;
     node->rhs = follower;
+  } else if (consume("++")) {
+    node_t *follower = parse_exp(PRE_INC_RIGHT_BIND_POW);
+    node->kind = NODE_ASSIGN;
+    node->lhs = follower;
+    node->rhs = new_node();
+    node->rhs->kind = NODE_ADD;
+    node->rhs->lhs = follower;
+    node->rhs->rhs = new_node();
+    node->rhs->rhs->kind = NODE_NUM;
+    node->rhs->rhs->val = 1;
+    node->rhs->rhs->type = new_type_with(TYPE_INT, NULL);
+  } else if (consume("--")) {
+    node_t *follower = parse_exp(PRE_INC_RIGHT_BIND_POW);
+    node->kind = NODE_ASSIGN;
+    node->lhs = follower;
+    node->rhs = new_node();
+    node->rhs->kind = NODE_SUB;
+    node->rhs->lhs = follower;
+    node->rhs->rhs = new_node();
+    node->rhs->rhs->kind = NODE_NUM;
+    node->rhs->rhs->val = 1;
+    node->rhs->rhs->type = new_type_with(TYPE_INT, NULL);
   } else if (consume("(")) {
     node = parse_exp(0);
     expect(")");
@@ -826,7 +851,22 @@ node_t *parse_exp(int min_bind_pow) {
       deref->rhs = parse_follower(node, "[", 0, NODE_ADD);
       node = deref;
       expect("]");
-
+    } else if (peek("++") || peek("--")) {
+      error("postfix ++/-- not supported yet");
+      // if (POST_INC_LEFT_BINDING_POW <= min_bind_pow) {
+      //   return node;
+      // }
+      // node_t *inc = new_node();
+      // inc->kind = NODE_ASSIGN;
+      // inc->lhs = node;
+      // inc->rhs = new_node();
+      // inc->rhs->kind = NODE_ADD;
+      // inc->rhs->lhs = node;
+      // inc->rhs->rhs = new_node();
+      // inc->rhs->rhs->kind = NODE_NUM;
+      // inc->rhs->rhs->val = 1;
+      // inc->rhs->rhs->type = new_type_with(TYPE_INT, NULL);
+      // node = parse_follower(inc, "++", 0, NODE_ASSIGN);
     } else {
       return node;
     }

@@ -16,6 +16,9 @@ SRCS := \
 	char.c \
 	local_variable_initialization.c \
 	string.c \
+	pre_increment.c \
+	# post_increment.c 	\
+	# prime.c \
 
 
 REF_EXE := $(SRCS:.c=.ref.exe)
