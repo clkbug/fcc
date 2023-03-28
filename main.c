@@ -178,6 +178,10 @@ token_t *new_token(token_kind_t kind, token_t *cur, char *str, size_t len) {
   return tok;
 }
 
+int compare_token(token_t *tok, char *str, size_t len) {
+  return tok->len == len && strncmp(tok->str, str, len) == 0;
+}
+
 token_t *tokenize(char *p) {
   token_t head;
   token_t *cur = &head;
@@ -234,29 +238,29 @@ token_t *tokenize(char *p) {
       cur = new_token(TK_IDENT, cur, p, n);
       p += n;
 
-      if (strncmp(cur->str, "return", 6) == 0) {
+      if (compare_token(cur, "return", 6)) {
         cur->kind = TK_RETURN;
-      } else if (strncmp(cur->str, "if", 2) == 0) {
+      } else if (compare_token(cur, "if", 2)) {
         cur->kind = TK_IF;
-      } else if (strncmp(cur->str, "else", 4) == 0) {
+      } else if (compare_token(cur, "else", 4)) {
         cur->kind = TK_ELSE;
-      } else if (strncmp(cur->str, "while", 5) == 0) {
+      } else if (compare_token(cur, "while", 5)) {
         cur->kind = TK_WHILE;
-      } else if (strncmp(cur->str, "for", 3) == 0) {
+      } else if (compare_token(cur, "for", 3)) {
         cur->kind = TK_FOR;
-      } else if (strncmp(cur->str, "break", 5) == 0) {
+      } else if (compare_token(cur, "break", 5)) {
         cur->kind = TK_BREAK;
-      } else if (strncmp(cur->str, "continue", 8) == 0) {
+      } else if (compare_token(cur, "continue", 8)) {
         cur->kind = TK_CONTINUE;
-      } else if (strncmp(cur->str, "int", 3) == 0) {
+      } else if (compare_token(cur, "int", 3)) {
         cur->kind = TK_TYPE_INT;
-      } else if (strncmp(cur->str, "char", 4) == 0) {
+      } else if (compare_token(cur, "char", 4)) {
         cur->kind = TK_TYPE_CHAR;
-      } else if (strncmp(cur->str, "size_t", 6) == 0) {
+      } else if (compare_token(cur, "size_t", 6)) {
         cur->kind = TK_TYPE_INT;
-      } else if (strncmp(cur->str, "void", 4) == 0) {
+      } else if (compare_token(cur, "void", 4)) {
         cur->kind = TK_TYPE_VOID;
-      } else if (strncmp(cur->str, "typedef", 7) == 0) {
+      } else if (compare_token(cur, "typedef", 7)) {
         cur->kind = TK_TYPEDEF;
       }
 
