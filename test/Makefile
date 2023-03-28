@@ -22,6 +22,7 @@ SRCS := \
 	function_void.c \
 	function_arg.c \
 	gcd.c \
+	typedef.c \
 	# post_increment.c 	\
 
 

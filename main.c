@@ -58,8 +58,11 @@ typedef enum {
   TK_FOR,
   TK_IDENT,
   TK_INT,
-  TK_TYPE,
+  TK_TYPE_INT,
+  TK_TYPE_CHAR,
+  TK_TYPE_VOID,
   TK_STRING,
+  TK_TYPEDEF,
   TK_EOF,
 } token_kind_t;
 
@@ -122,6 +125,13 @@ token_t *consume_ident() {
   return tok;
 }
 
+token_t *peek_ident() {
+  if (token->kind != TK_IDENT) {
+    return NULL;
+  }
+  return token;
+}
+
 token_t *consume_ident_or_fail() {
   if (token->kind != TK_IDENT) {
     return NULL;
@@ -138,6 +148,16 @@ token_t *consume_reserved(token_kind_t kind) {
   token_t *tok = token;
   token = token->next;
   return tok;
+}
+
+token_t *consume_any_type() {
+  if (token->kind == TK_TYPE_INT || token->kind == TK_TYPE_CHAR ||
+      token->kind == TK_TYPE_VOID) {
+    token_t *tok = token;
+    token = token->next;
+    return tok;
+  }
+  return NULL;
 }
 
 void push_token(token_t *tok) {
@@ -229,13 +249,15 @@ token_t *tokenize(char *p) {
       } else if (strncmp(cur->str, "continue", 8) == 0) {
         cur->kind = TK_CONTINUE;
       } else if (strncmp(cur->str, "int", 3) == 0) {
-        cur->kind = TK_TYPE;
+        cur->kind = TK_TYPE_INT;
       } else if (strncmp(cur->str, "char", 4) == 0) {
-        cur->kind = TK_TYPE;
+        cur->kind = TK_TYPE_CHAR;
       } else if (strncmp(cur->str, "size_t", 6) == 0) {
-        cur->kind = TK_TYPE;
+        cur->kind = TK_TYPE_INT;
       } else if (strncmp(cur->str, "void", 4) == 0) {
-        cur->kind = TK_TYPE;
+        cur->kind = TK_TYPE_VOID;
+      } else if (strncmp(cur->str, "typedef", 7) == 0) {
+        cur->kind = TK_TYPEDEF;
       }
 
       continue;
@@ -312,7 +334,7 @@ typedef enum type_kind_t {
   TYPE_VOID,
   TYPE_INT,
   TYPE_CHAR,
-  TYPE_POITNER,
+  TYPE_POINTER,
   TYPE_ARRAY,
   TYPE_FUNCTION,
 } type_kind_t;
@@ -350,7 +372,7 @@ void print_type(type_t *t) {
     case TYPE_CHAR:
       fprintf(stderr, "char");
       break;
-    case TYPE_POITNER:
+    case TYPE_POINTER:
       fprintf(stderr, "*");
       print_type(t->ptr_to);
       break;
@@ -382,7 +404,7 @@ size_t calc_size_of_type(type_t *t) {
     return 4;
   } else if (t->ty == TYPE_CHAR) {
     return 1;
-  } else if (t->ty == TYPE_POITNER) {
+  } else if (t->ty == TYPE_POINTER) {
     return 4;
   } else if (t->ty == TYPE_ARRAY) {
     return t->n * calc_size_of_type(t->ptr_to);
@@ -391,6 +413,35 @@ size_t calc_size_of_type(type_t *t) {
   }
   error("calc_size_of_type: invalid data type: %d", t->ty);
   return 0;
+}
+typedef struct type_alias_t {
+  char *name;
+  size_t name_length;
+  struct type_t *type;
+  struct type_alias_t *next;
+} type_alias_t;
+
+type_alias_t *type_alias = NULL;
+
+void add_type_alias(char *name, size_t name_length, type_t *type) {
+  type_alias_t *t = calloc(1, sizeof(type_alias_t));
+  t->name = name;
+  t->name_length = name_length;
+  t->type = type;
+  t->next = type_alias;
+  type_alias = t;
+}
+
+type_t *find_type_alias(char *name, size_t name_length) {
+  type_alias_t *t = type_alias;
+  while (t) {
+    if (t->name_length == name_length &&
+        memcmp(t->name, name, name_length) == 0) {
+      return t->type;
+    }
+    t = t->next;
+  }
+  return NULL;
 }
 
 typedef struct type_and_name_t {
@@ -403,75 +454,89 @@ type_and_name_t *parse_type_and_name() {
   type_and_name_t *a = NULL;
   token_t *tok;
   type_t *tmp;
-  if ((tok = consume_reserved(TK_TYPE))) {
-    a = calloc(sizeof(type_and_name_t), 1);
+  tok = consume_any_type();
+
+  if (!tok) {
+    tok = peek_ident();
+    if (!tok) return NULL;
+  }
+
+  a = calloc(sizeof(type_and_name_t), 1);
+  if (tok->len == 3 && memcmp(tok->str, "int", 3) == 0) {
     a->t = new_type();
-    if (tok->len == 3 && memcmp(tok->str, "int", 3) == 0) {
-      a->t->ty = TYPE_INT;
-    } else if (tok->len == 4 && memcmp(tok->str, "char", 4) == 0) {
-      a->t->ty = TYPE_CHAR;
-    } else if (tok->len == 6 && memcmp(tok->str, "size_t", 6) == 0) {
-      a->t->ty = TYPE_INT;
-    } else if (tok->len == 4 && memcmp(tok->str, "void", 4) == 0) {
-      a->t->ty = TYPE_VOID;
-    } else {
-      error("unknown type: %s", tok->str);
-    }
+    a->t->ty = TYPE_INT;
+  } else if (tok->len == 4 && memcmp(tok->str, "char", 4) == 0) {
+    a->t = new_type();
+    a->t->ty = TYPE_CHAR;
+  } else if (tok->len == 6 && memcmp(tok->str, "size_t", 6) == 0) {
+    a->t = new_type();
+    a->t->ty = TYPE_INT;
+  } else if (tok->len == 4 && memcmp(tok->str, "void", 4) == 0) {
+    a->t = new_type();
+    a->t->ty = TYPE_VOID;
+  } else {
+    a->t = find_type_alias(tok->str, tok->len);
+    if (!a->t) return NULL;
+    consume_ident();
+  }
 
-    while (!(tok = consume_ident_or_fail())) {
-      consume("*");
-      a->t = new_type_with(TYPE_POITNER, a->t);
-    }
+  while (!(tok = consume_ident_or_fail())) {
+    consume("*");
+    a->t = new_type_with(TYPE_POINTER, a->t);
+  }
 
-    a->name = tok->str;
-    a->len = tok->len;
+  a->name = tok->str;
+  a->len = tok->len;
 
-    if (consume("[")) {
-      a->t = new_type_with(TYPE_ARRAY, a->t);
-      a->t->n = expect_int();
-      expect("]");
-    } else if (consume("(")) {
-      // function
-      tmp = a->t;
-      a->t = new_type();
-      a->t->ret = tmp;
-      a->t->ty = TYPE_FUNCTION;
-      for (size_t i = 0; i < MAX_ARGS; i++) {
-        if (consume(")")) {
-          break;
-        }
-        if (0 < i) {
-          if (!consume(",")) {
-            error("call f(x y)? needs comma?\n");
-          }
-        }
-        tok = consume_reserved(TK_TYPE);
-        if (!tok) {
-          error("expected TK_TYPE in function's parameters");
-        }
-        a->t->args[i] = new_type();
-        if (tok->len == 3 && memcmp(tok->str, "int", 3) == 0) {
-          a->t->args[i]->ty = TYPE_INT;
-        } else if (tok->len == 4 && memcmp(tok->str, "char", 4) == 0) {
-          a->t->args[i]->ty = TYPE_CHAR;
-        } else if (tok->len == 6 && memcmp(tok->str, "size_t", 6) == 0) {
-          a->t->args[i]->ty = TYPE_INT;
-        } else if (tok->len == 4 && memcmp(tok->str, "void", 4) == 0) {
-          a->t->args[i]->ty = TYPE_VOID;
-        } else {
-          error("unknown type: %s", tok->str);
-        }
-
-        while (!(tok = consume_ident_or_fail())) {
-          assert(consume("*"));
-          a->t->args[i] = new_type_with(TYPE_POITNER, a->t->args[i]);
-        }
-
-        // tok = consume_ident();
-        a->t->arg_names[i] = tok;
-
-        a->t->arg_count = i + 1;
+  if (consume("[")) {
+    a->t = new_type_with(TYPE_ARRAY, a->t);
+    a->t->n = expect_int();
+    expect("]");
+  } else if (consume("(")) {
+    // function
+    tmp = a->t;
+    a->t = new_type();
+    a->t->ret = tmp;
+    a->t->ty = TYPE_FUNCTION;
+    for (size_t i = 0; i < MAX_ARGS; i++) {
+      if (consume(")")) {
+        break;
       }
+      if (0 < i) {
+        if (!consume(",")) {
+          error("call f(x y)? needs comma?\n");
+        }
+      }
+      tok = consume_any_type();
+      if (!tok) {
+        tok = consume_ident();
+      }
+      if (tok->len == 3 && memcmp(tok->str, "int", 3) == 0) {
+        a->t->args[i] = new_type();
+        a->t->args[i]->ty = TYPE_INT;
+      } else if (tok->len == 4 && memcmp(tok->str, "char", 4) == 0) {
+        a->t->args[i] = new_type();
+        a->t->args[i]->ty = TYPE_CHAR;
+      } else if (tok->len == 6 && memcmp(tok->str, "size_t", 6) == 0) {
+        a->t->args[i] = new_type();
+        a->t->args[i]->ty = TYPE_INT;
+      } else if (tok->len == 4 && memcmp(tok->str, "void", 4) == 0) {
+        a->t->args[i] = new_type();
+        a->t->args[i]->ty = TYPE_VOID;
+      } else {
+        a->t->args[i] = find_type_alias(tok->str, tok->len);
+        if (!a->t) return NULL;
+      }
+
+      while (!(tok = consume_ident_or_fail())) {
+        assert(consume("*"));
+        a->t->args[i] = new_type_with(TYPE_POINTER, a->t->args[i]);
+      }
+
+      // tok = consume_ident();
+      a->t->arg_names[i] = tok;
+
+      a->t->arg_count = i + 1;
     }
   }
   return a;
@@ -499,6 +564,7 @@ constant_string_t *add_constant_string(token_t *tok) {
 typedef enum {
   NODE_INVALID,
   NODE_VAR_DEC,
+  NODE_TYPEDEF,
   NODE_MINUS,
   NODE_ADD,
   NODE_SUB,
@@ -656,8 +722,10 @@ constant_string_t *add_global_variable_with_constant_string(char *name,
 }
 
 typedef enum {
+  DECLARATION_INVALID,
   DECLARATION_FUNCTION,
   DECLARATION_GLOBAL_VARIABLE,
+  DECLARATION_TYPEDEF,
 } declaration_type_t;
 
 typedef struct declaration_t {
@@ -993,7 +1061,7 @@ void add_type(node_t *node) {
       node->type = new_type_with(TYPE_INT, NULL);
       break;
     case NODE_CONST_STRING:
-      node->type = new_type_with(TYPE_POITNER, new_type_with(TYPE_CHAR, NULL));
+      node->type = new_type_with(TYPE_POINTER, new_type_with(TYPE_CHAR, NULL));
       break;
     case NODE_MINUS:
       add_type(node->rhs);
@@ -1003,9 +1071,9 @@ void add_type(node_t *node) {
     case NODE_SUB:
       add_type(node->lhs);
       add_type(node->rhs);
-      if (node->lhs->type->ty == TYPE_POITNER) {
+      if (node->lhs->type->ty == TYPE_POINTER) {
         node->type = node->lhs->type;
-      } else if (node->rhs->type->ty == TYPE_POITNER) {
+      } else if (node->rhs->type->ty == TYPE_POINTER) {
         node->type = node->rhs->type;
       } else {
         node->type = node->lhs->type;
@@ -1076,7 +1144,7 @@ void add_type(node_t *node) {
       break;
     case NODE_ADDR:
       add_type(node->rhs);
-      node->type = new_type_with(TYPE_POITNER, node->rhs->type);
+      node->type = new_type_with(TYPE_POINTER, node->rhs->type);
       break;
     case NODE_DEREF:
       add_type(node->rhs);
@@ -1100,9 +1168,21 @@ void add_type(node_t *node) {
 
 declaration_t *parse_declaration() {
   declaration_t *d = new_declaration();
-  type_and_name_t *type_and_name = parse_type_and_name();
+  type_and_name_t *type_and_name;
   token_t *tok;
 
+  if (consume_reserved(TK_TYPEDEF)) {
+    d->declaration_type = DECLARATION_TYPEDEF;
+    type_and_name = parse_type_and_name();
+    d->type = type_and_name->t;
+    d->name = type_and_name->name;
+    d->name_length = type_and_name->len;
+    add_type_alias(type_and_name->name, type_and_name->len, type_and_name->t);
+    expect(";");
+    return d;
+  }
+
+  type_and_name = parse_type_and_name();
   if (consume(";")) {
     d->declaration_type = DECLARATION_GLOBAL_VARIABLE;
     d->type = type_and_name->t;
@@ -1333,6 +1413,9 @@ void print_declaration(declaration_t *dec) {
       fprintf(stderr, ";\n");
     }
     fprintf(stderr, "}\n");
+  } else if (dec->declaration_type == DECLARATION_TYPEDEF) {
+    print_str_len(stderr, dec->name, dec->name_length);
+    fprintf(stderr, "\n");
   } else {
     error("failed to print declaration! type: %d", dec->declaration_type);
   }
@@ -1428,12 +1511,12 @@ void gen(node_t *node) {
       gen(node->rhs);
       gen_pop("t0");  // rhs
       gen_pop("t1");  // lhs
-      if (node->lhs->type->ty == TYPE_POITNER ||
+      if (node->lhs->type->ty == TYPE_POINTER ||
           node->lhs->type->ty == TYPE_ARRAY) {
         printf("%sli t2, %zd\n", indent,
                calc_size_of_type(node->lhs->type->ptr_to));
         printf("%smul t0, t0, t2\n", indent);
-      } else if (node->rhs->type->ty == TYPE_POITNER ||
+      } else if (node->rhs->type->ty == TYPE_POINTER ||
                  node->rhs->type->ty == TYPE_ARRAY) {
         printf("%sli t2, %zd\n", indent,
                calc_size_of_type(node->lhs->type->ptr_to));
@@ -1447,10 +1530,10 @@ void gen(node_t *node) {
       gen(node->rhs);
       gen_pop("t0");
       gen_pop("t1");
-      if (node->lhs->type->ty == TYPE_POITNER ||
+      if (node->lhs->type->ty == TYPE_POINTER ||
           node->lhs->type->ty == TYPE_ARRAY) {
         printf("%sslli t0, t0, 2\n", indent);  // rhs * 4
-      } else if (node->rhs->type->ty == TYPE_POITNER ||
+      } else if (node->rhs->type->ty == TYPE_POINTER ||
                  node->rhs->type->ty == TYPE_ARRAY) {
         printf("%sslli t1, t1, 2\n", indent);  // lhs * 4
       }
@@ -1792,6 +1875,9 @@ void gen_declaration(declaration_t *dec) {
       }
       print_func_epilogue(dec);
       local_variables = NULL;
+      break;
+    case DECLARATION_TYPEDEF:
+      // do nothing
       break;
     default:
       error("unreachable! invalid declaration");
