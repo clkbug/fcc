@@ -551,6 +551,7 @@ type_and_name_t *parse_type_and_name() {
       // struct definition
       a->t->struct_type = new_type_struct();
       expect("{");
+      size_t offset = 0;
       while (1) {
         type_and_name_t *t = parse_type_and_name();
         if (!t) {
@@ -562,13 +563,13 @@ type_and_name_t *parse_type_and_name() {
         a->t->struct_type
             ->member_name_lengths[a->t->struct_type->member_count] = t->len;
         a->t->struct_type->member_types[a->t->struct_type->member_count] = t->t;
-        if (a->t->struct_type->member_count > 0) {
-          a->t->struct_type->member_offsets[a->t->struct_type->member_count] =
-              a->t->struct_type
-                  ->member_offsets[a->t->struct_type->member_count - 1] +
-              calc_size_of_type(
-                  a->t->struct_type
-                      ->member_types[a->t->struct_type->member_count - 1]);
+
+        a->t->struct_type->member_offsets[a->t->struct_type->member_count] =
+            offset;
+        offset += calc_size_of_type(
+            a->t->struct_type->member_types[a->t->struct_type->member_count]);
+        if (offset % 4 != 0) {
+          offset += 4 - (offset % 4);
         }
         a->t->struct_type->member_count++;
       }
