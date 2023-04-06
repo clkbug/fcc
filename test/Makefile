@@ -24,6 +24,8 @@ SRCS := \
 	gcd.c \
 	typedef.c \
 	struct.c \
+	struct_arrow.c \
+	# struct_alignment.c \
 	# post_increment.c 	\
 
 

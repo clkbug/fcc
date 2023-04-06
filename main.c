@@ -216,7 +216,8 @@ token_t *tokenize(char *p) {
     if (2 <= strlen(p)) {
       if (memcmp(p, "==", 2) == 0 || memcmp(p, "!=", 2) == 0 ||
           memcmp(p, "<=", 2) == 0 || memcmp(p, ">=", 2) == 0 ||
-          memcmp(p, "++", 2) == 0 || memcmp(p, "--", 2) == 0) {
+          memcmp(p, "++", 2) == 0 || memcmp(p, "--", 2) == 0 ||
+          memcmp(p, "->", 2) == 0) {
         cur = new_token(TK_RESERVED, cur, p, 2);
         p += 2;
         continue;
@@ -1238,7 +1239,16 @@ void add_type(node_t *node) {
       break;
     case NODE_ARROW:
       add_type(node->lhs);
-      error("add_type(NODE_ARROW) is not implemented yet");
+      assert(node->lhs->type->ty == TYPE_POINTER);
+      assert(node->lhs->type->ptr_to->ty == TYPE_STRUCT);
+      // assert(node->rhs->kind == NODE_STRUCT_MEMBER);
+      i = get_member_index(node->lhs->type->ptr_to->struct_type,
+                           node->rhs->name, node->rhs->len);
+      node->rhs->kind = NODE_STRUCT_MEMBER;
+      node->rhs->offset =
+          node->lhs->type->ptr_to->struct_type->member_offsets[i];
+      node->rhs->type = node->lhs->type->ptr_to->struct_type->member_types[i];
+      node->type = node->rhs->type;
       break;
     case NODE_RETURN:
       if (node->rhs) {
@@ -1660,6 +1670,13 @@ void gen_lval(node_t *node) {
     print_str_len(stdout, node->rhs->name, node->rhs->len);
     printf("\n");
     gen_push("t0");
+  } else if (node->kind == NODE_ARROW) {
+    gen(node->lhs);
+    gen_pop("t0");
+    printf("%saddi t0, t0, %d\t\t# member: ", indent, node->rhs->offset);
+    print_str_len(stdout, node->rhs->name, node->rhs->len);
+    printf("\n");
+    gen_push("t0");
   } else {
     error("左辺値が左辺値ではない！ kind=%d", node->kind);
   }
@@ -1850,6 +1867,12 @@ void gen(node_t *node) {
       break;
     case NODE_DOT:
       gen_lval(node->lhs);
+      gen_pop("t0");
+      printf("%slw t0, %d(t0)\n", indent, node->rhs->offset);
+      gen_push("t0");
+      break;
+    case NODE_ARROW:
+      gen(node->lhs);
       gen_pop("t0");
       printf("%slw t0, %d(t0)\n", indent, node->rhs->offset);
       gen_push("t0");
