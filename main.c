@@ -63,6 +63,7 @@ typedef enum {
   TK_TYPE_VOID,
   TK_STRING,
   TK_TYPEDEF,
+  TK_STRUCT,
   TK_EOF,
 } token_kind_t;
 
@@ -224,7 +225,7 @@ token_t *tokenize(char *p) {
     if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '%' ||
         *p == '>' || *p == '<' || *p == '(' || *p == ')' || *p == '[' ||
         *p == ']' || *p == '=' || *p == ';' || *p == '{' || *p == '}' ||
-        *p == ',' || *p == '&') {
+        *p == ',' || *p == '&' || *p == '.') {
       cur = new_token(TK_RESERVED, cur, p, 1);
       p++;
       continue;
@@ -262,6 +263,8 @@ token_t *tokenize(char *p) {
         cur->kind = TK_TYPE_VOID;
       } else if (compare_token(cur, "typedef", 7)) {
         cur->kind = TK_TYPEDEF;
+      } else if (compare_token(cur, "struct", 6)) {
+        cur->kind = TK_STRUCT;
       }
 
       continue;
@@ -341,9 +344,56 @@ typedef enum type_kind_t {
   TYPE_POINTER,
   TYPE_ARRAY,
   TYPE_FUNCTION,
+  TYPE_STRUCT,
 } type_kind_t;
 
 #define MAX_ARGS 8
+#define MAX_STRUCT_MEMBERS 8
+
+typedef struct type_struct_t {
+  char *name;
+  size_t len;
+  size_t member_count;
+  char *member_names[MAX_STRUCT_MEMBERS];
+  size_t member_name_lengths[MAX_STRUCT_MEMBERS];
+  struct type_t *member_types[MAX_STRUCT_MEMBERS];
+  size_t member_offsets[MAX_STRUCT_MEMBERS];
+  struct type_struct_t *next;
+} type_struct_t;
+
+type_struct_t *type_struct = NULL;
+
+type_struct_t *new_type_struct() { return calloc(1, sizeof(type_struct_t)); }
+
+type_struct_t *find_type_struct(char *name, size_t len) {
+  type_struct_t *t = type_struct;
+  while (t) {
+    if (t->len == len && memcmp(t->name, name, len) == 0) {
+      return t;
+    }
+    t = t->next;
+  }
+  return NULL;
+}
+
+void add_type_struct(token_t *tok, type_struct_t *t) {
+  t->next = type_struct;
+  t->name = tok->str;
+  t->len = tok->len;
+  type_struct = t;
+}
+
+size_t get_member_index(type_struct_t *s, char *name, size_t len) {
+  for (size_t i = 0; i < s->member_count; i++) {
+    if (s->member_name_lengths[i] == len &&
+        memcmp(s->member_names[i], name, len) == 0) {
+      return i;
+    }
+  }
+  error("failed to get member offset at '%.*s'", len, name);
+  return 0;
+}
+
 typedef struct type_t {
   type_kind_t ty;
   struct type_t *ptr_to;
@@ -354,6 +404,9 @@ typedef struct type_t {
   struct type_t *args[MAX_ARGS];
   token_t *arg_names[MAX_ARGS];
   size_t arg_count;
+
+  // TYPE_STRUCT
+  type_struct_t *struct_type;
 } type_t;
 
 type_t *new_type() { return calloc(1, sizeof(type_t)); }
@@ -414,6 +467,10 @@ size_t calc_size_of_type(type_t *t) {
     return t->n * calc_size_of_type(t->ptr_to);
   } else if (t->ty == TYPE_FUNCTION) {
     return 4;
+  } else if (t->ty == TYPE_STRUCT) {
+    return t->struct_type->member_offsets[t->struct_type->member_count - 1] +
+           calc_size_of_type(
+               t->struct_type->member_types[t->struct_type->member_count - 1]);
   }
   error("calc_size_of_type: invalid data type: %d", t->ty);
   return 0;
@@ -461,23 +518,68 @@ type_and_name_t *parse_type_and_name() {
   tok = consume_any_type();
 
   if (!tok) {
+    tok = consume_reserved(TK_STRUCT);
+  }
+  if (!tok) {
     tok = peek_ident();
-    if (!tok) return NULL;
+  }
+
+  if (!tok) {
+    return NULL;
   }
 
   a = calloc(sizeof(type_and_name_t), 1);
-  if (tok->len == 3 && memcmp(tok->str, "int", 3) == 0) {
+  if (compare_token(tok, "int", 3)) {
     a->t = new_type();
     a->t->ty = TYPE_INT;
-  } else if (tok->len == 4 && memcmp(tok->str, "char", 4) == 0) {
+  } else if (compare_token(tok, "char", 4)) {
     a->t = new_type();
     a->t->ty = TYPE_CHAR;
-  } else if (tok->len == 6 && memcmp(tok->str, "size_t", 6) == 0) {
+  } else if (compare_token(tok, "size_t", 6)) {
     a->t = new_type();
     a->t->ty = TYPE_INT;
-  } else if (tok->len == 4 && memcmp(tok->str, "void", 4) == 0) {
+  } else if (compare_token(tok, "void", 4)) {
     a->t = new_type();
     a->t->ty = TYPE_VOID;
+  } else if (compare_token(tok, "struct", 6)) {
+    tok = consume_ident();
+    a->t = new_type();
+    a->t->ty = TYPE_STRUCT;
+    a->t->struct_type = find_type_struct(tok->str, tok->len);
+
+    if (!a->t->struct_type) {
+      // struct definition
+      a->t->struct_type = new_type_struct();
+      expect("{");
+      while (1) {
+        type_and_name_t *t = parse_type_and_name();
+        if (!t) {
+          break;
+        }
+        expect(";");
+        a->t->struct_type->member_names[a->t->struct_type->member_count] =
+            t->name;
+        a->t->struct_type
+            ->member_name_lengths[a->t->struct_type->member_count] = t->len;
+        a->t->struct_type->member_types[a->t->struct_type->member_count] = t->t;
+        if (a->t->struct_type->member_count > 0) {
+          a->t->struct_type->member_offsets[a->t->struct_type->member_count] =
+              a->t->struct_type
+                  ->member_offsets[a->t->struct_type->member_count - 1] +
+              calc_size_of_type(
+                  a->t->struct_type
+                      ->member_types[a->t->struct_type->member_count - 1]);
+        }
+        a->t->struct_type->member_count++;
+      }
+      // register struct type
+      add_type_struct(tok, a->t->struct_type);
+
+      expect("}");
+      // expect(";");
+      return a;
+    }
+    // struct variable (may be function definition)
   } else {
     a->t = find_type_alias(tok->str, tok->len);
     if (!a->t) return NULL;
@@ -596,6 +698,9 @@ typedef enum {
   NODE_CALL,
   NODE_ADDR,
   NODE_DEREF,
+  NODE_STRUCT_MEMBER,
+  NODE_DOT,
+  NODE_ARROW,
   // NODE_INDEX, // a[i] -> *(a + i)
 } node_kind_t;
 
@@ -605,7 +710,7 @@ typedef struct node_t {
   struct node_t *lhs;
   struct node_t *rhs;
   int val;      // for NODE_NUM
-  int offset;   // for NODE_LOCAL_VARIABLE, from fp
+  int offset;   // for NODE_LOCAL_VARIABLE, from fp, or for NODE_STRUCT_MEMBER
   bool ignore;  // if true, then pop(ignore) the value
   type_t *type;
 
@@ -730,6 +835,7 @@ typedef enum {
   DECLARATION_FUNCTION,
   DECLARATION_GLOBAL_VARIABLE,
   DECLARATION_TYPEDEF,
+  // DECLARATION_STRUCT,
 } declaration_type_t;
 
 typedef struct declaration_t {
@@ -766,6 +872,11 @@ node_t *parse_int() {
 // high is prior
 const int INDEX_LEFT_BINDING_POW = 201;
 const int POST_INC_LEFT_BINDING_POW = 201;
+
+// . ->
+const int MEMBER_ACCESS_LEFT_BINDING_POW = 201;
+const int MEMBER_ACCESS_RIGHT_BINDING_POW = 200;
+
 const int NEG_RIGHT_BIND_POW = 151;
 const int ADDR_RIGHT_BIND_POW = 151;
 const int DEREF_RIGHT_BIND_POW = 151;
@@ -880,7 +991,10 @@ node_t *parse_exp(int min_bind_pow) {
         node->name = gvar->name;
         node->len = gvar->len;
       } else {
-        error("%s not declared", tok->str);
+        // skip for now, because of struct member access
+        node->kind = NODE_STRUCT_MEMBER;
+        node->name = tok->str;
+        node->len = tok->len;
       }
       node->name = tok->str;
       node->len = tok->len;
@@ -949,6 +1063,18 @@ node_t *parse_exp(int min_bind_pow) {
         return node;
       }
       node = parse_follower(node, "=", ASSIGN_RIGHT_BINDING_POWER, NODE_ASSIGN);
+    } else if (peek(".")) {
+      if (MEMBER_ACCESS_LEFT_BINDING_POW <= min_bind_pow) {
+        return node;
+      }
+      node =
+          parse_follower(node, ".", MEMBER_ACCESS_RIGHT_BINDING_POW, NODE_DOT);
+    } else if (peek("->")) {
+      if (MEMBER_ACCESS_LEFT_BINDING_POW <= min_bind_pow) {
+        return node;
+      }
+      node = parse_follower(node, "->", MEMBER_ACCESS_RIGHT_BINDING_POW,
+                            NODE_ARROW);
     } else if (peek("[")) {
       if (INDEX_LEFT_BINDING_POW <= min_bind_pow) {
         return node;
@@ -1060,6 +1186,7 @@ node_t *parse_stmt() {
 }
 
 void add_type(node_t *node) {
+  size_t i;
   switch (node->kind) {
     case NODE_NUM:
       node->type = new_type_with(TYPE_INT, NULL);
@@ -1096,6 +1223,21 @@ void add_type(node_t *node) {
       add_type(node->lhs);
       add_type(node->rhs);
       node->type = node->lhs->type;
+      break;
+    case NODE_DOT:
+      add_type(node->lhs);
+      assert(node->lhs->type->ty == TYPE_STRUCT);
+      // assert(node->rhs->kind == NODE_STRUCT_MEMBER);
+      i = get_member_index(node->lhs->type->struct_type, node->rhs->name,
+                           node->rhs->len);
+      node->rhs->kind = NODE_STRUCT_MEMBER;
+      node->rhs->offset = node->lhs->type->struct_type->member_offsets[i];
+      node->rhs->type = node->lhs->type->struct_type->member_types[i];
+      node->type = node->rhs->type;
+      break;
+    case NODE_ARROW:
+      add_type(node->lhs);
+      error("add_type(NODE_ARROW) is not implemented yet");
       break;
     case NODE_RETURN:
       if (node->rhs) {
@@ -1188,13 +1330,18 @@ declaration_t *parse_declaration() {
 
   type_and_name = parse_type_and_name();
   if (consume(";")) {
-    d->declaration_type = DECLARATION_GLOBAL_VARIABLE;
-    d->type = type_and_name->t;
-    d->name = type_and_name->name;
-    d->name_length = type_and_name->len;
-    add_global_variable(type_and_name->name, type_and_name->len,
-                        type_and_name->t);
-    return d;
+    if (type_and_name->name == NULL) {
+      // struct definition
+      return NULL;
+    } else {
+      d->declaration_type = DECLARATION_GLOBAL_VARIABLE;
+      d->type = type_and_name->t;
+      d->name = type_and_name->name;
+      d->name_length = type_and_name->len;
+      add_global_variable(type_and_name->name, type_and_name->len,
+                          type_and_name->t);
+      return d;
+    }
   }
 
   if (consume("=")) {
@@ -1214,6 +1361,30 @@ declaration_t *parse_declaration() {
 
   if (!consume("{")) {
     error("failed to parse declaration: '{' expected");
+  }
+
+  if (type_and_name->t->ty == TYPE_STRUCT &&
+      !find_type_struct(type_and_name->name, type_and_name->len)) {
+    type_struct_t *ts = new_type_struct();
+    size_t offset = 0;
+    size_t index = 0;
+
+    ts->name = type_and_name->name;
+    ts->len = type_and_name->len;
+
+    // struct definition
+    while (!consume("}")) {
+      type_and_name_t *tn = parse_type_and_name();
+      ts->member_names[index] = tn->name;
+      ts->member_name_lengths[index] = tn->len;
+      ts->member_types[index] = tn->t;
+      ts->member_offsets[index] = offset;
+      ts->member_count = index + 1;
+      consume(";");
+    }
+    ts->next = type_struct;
+    type_struct = ts;
+    return NULL;
   }
 
   assert(type_and_name->t->ty == TYPE_FUNCTION);
@@ -1305,6 +1476,12 @@ void print_node(node_t *node) {
     case NODE_NEQ:
       print_node_binop(node, "!=");
       break;
+    case NODE_DOT:
+      print_node_binop(node, ".");
+      break;
+    case NODE_ARROW:
+      print_node_binop(node, "->");
+      break;
     case NODE_NUM:
       fprintf(stderr, "%d", node->val);
       break;
@@ -1313,7 +1490,8 @@ void print_node(node_t *node) {
                     node->const_str->tok->len);
       break;
     case NODE_LOCAL_VARIABLE:
-    case NODE_GLOBAL_VARIABLE: {
+    case NODE_GLOBAL_VARIABLE:
+    case NODE_STRUCT_MEMBER: {
       print_str_len(stderr, node->name, node->len);
       break;
     }
@@ -1474,6 +1652,13 @@ void gen_lval(node_t *node) {
     gen_push("t0");
   } else if (node->kind == NODE_DEREF) {
     gen(node->rhs);
+  } else if (node->kind == NODE_DOT) {
+    gen_lval(node->lhs);
+    gen_pop("t0");
+    printf("%saddi t0, t0, %d\t\t# member: ", indent, node->rhs->offset);
+    print_str_len(stdout, node->rhs->name, node->rhs->len);
+    printf("\n");
+    gen_push("t0");
   } else {
     error("左辺値が左辺値ではない！ kind=%d", node->kind);
   }
@@ -1661,6 +1846,12 @@ void gen(node_t *node) {
         }
         gen_push("t0");
       }
+      break;
+    case NODE_DOT:
+      gen_lval(node->lhs);
+      gen_pop("t0");
+      printf("%slw t0, %d(t0)\n", indent, node->rhs->offset);
+      gen_push("t0");
       break;
     case NODE_ASSIGN:
       gen(node->rhs);
@@ -1918,8 +2109,10 @@ int main(int argc, char **argv) {
   print_header();
   while (!at_eof()) {
     declaration_t *dec = parse_declaration();
-    print_declaration(dec);
-    gen_declaration(dec);
+    if (dec) {
+      print_declaration(dec);
+      gen_declaration(dec);
+    }
   }
   print_constant_strings();
 
