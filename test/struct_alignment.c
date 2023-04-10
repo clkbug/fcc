@@ -5,10 +5,18 @@ struct struct_a {
 
 void test0() {
   struct struct_a a;
+  struct struct_a* p = &a;
+
   a.a = 1024 + 10;
   a.b = 20;
   putchar(a.a + '0');
   putchar(a.b + '0');
+  p->a = 1024 + 2048 + 22;
+  p->b = 33;
+  putchar(a.a + '0');
+  putchar(a.b + '0');
+  putchar(p->a + '0');
+  putchar(p->b + '0');
   putchar('\n');
   return;
 }
