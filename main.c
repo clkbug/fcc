@@ -872,12 +872,12 @@ node_t *parse_int() {
 
 // binding power
 // high is prior
-const int INDEX_LEFT_BINDING_POW = 201;
-const int POST_INC_LEFT_BINDING_POW = 201;
+const int INDEX_LEFT_BINDING_POW = 200;
+const int POST_INC_LEFT_BINDING_POW = 200;
 
 // . ->
-const int MEMBER_ACCESS_LEFT_BINDING_POW = 201;
-const int MEMBER_ACCESS_RIGHT_BINDING_POW = 200;
+const int MEMBER_ACCESS_LEFT_BINDING_POW = 200;
+const int MEMBER_ACCESS_RIGHT_BINDING_POW = 201;
 
 const int NEG_RIGHT_BIND_POW = 151;
 const int ADDR_RIGHT_BIND_POW = 151;
@@ -1868,7 +1868,11 @@ void gen(node_t *node) {
     case NODE_DOT:
       gen_lval(node->lhs);
       gen_pop("t0");
-      printf("%slw t0, %d(t0)\n", indent, node->rhs->offset);
+      if (node->type->ty != TYPE_ARRAY) {
+        printf("%slw t0, %d(t0)\n", indent, node->rhs->offset);
+      } else {
+        printf("%saddi t0, t0, %d\n", indent, node->rhs->offset);
+      }
       gen_push("t0");
       break;
     case NODE_ARROW:
