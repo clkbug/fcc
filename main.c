@@ -1878,7 +1878,11 @@ void gen(node_t *node) {
     case NODE_ARROW:
       gen(node->lhs);
       gen_pop("t0");
-      printf("%slw t0, %d(t0)\n", indent, node->rhs->offset);
+      if (node->type->ty != TYPE_ARRAY) {
+        printf("%slw t0, %d(t0)\n", indent, node->rhs->offset);
+      } else {
+        printf("%saddi t0, t0, %d\n", indent, node->rhs->offset);
+      }
       gen_push("t0");
       break;
     case NODE_ASSIGN:
