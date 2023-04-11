@@ -352,11 +352,9 @@ typedef enum type_kind_t {
 #define MAX_STRUCT_MEMBERS 8
 
 typedef struct type_struct_t {
-  char *name;
-  size_t len;
+  token_t *name;
   size_t member_count;
-  char *member_names[MAX_STRUCT_MEMBERS];
-  size_t member_name_lengths[MAX_STRUCT_MEMBERS];
+  token_t *member_names[MAX_STRUCT_MEMBERS];
   struct type_t *member_types[MAX_STRUCT_MEMBERS];
   size_t member_offsets[MAX_STRUCT_MEMBERS];
   struct type_struct_t *next;
@@ -366,10 +364,11 @@ type_struct_t *type_struct = NULL;
 
 type_struct_t *new_type_struct() { return calloc(1, sizeof(type_struct_t)); }
 
-type_struct_t *find_type_struct(char *name, size_t len) {
+type_struct_t *find_type_struct(token_t *name) {
   type_struct_t *t = type_struct;
   while (t) {
-    if (t->len == len && memcmp(t->name, name, len) == 0) {
+    if (t->name->len == name->len &&
+        memcmp(t->name->str, name->str, name->len) == 0) {
       return t;
     }
     t = t->next;
@@ -379,19 +378,18 @@ type_struct_t *find_type_struct(char *name, size_t len) {
 
 void add_type_struct(token_t *tok, type_struct_t *t) {
   t->next = type_struct;
-  t->name = tok->str;
-  t->len = tok->len;
+  t->name = tok;
   type_struct = t;
 }
 
-size_t get_member_index(type_struct_t *s, char *name, size_t len) {
+size_t get_member_index(type_struct_t *s, token_t *name) {
   for (size_t i = 0; i < s->member_count; i++) {
-    if (s->member_name_lengths[i] == len &&
-        memcmp(s->member_names[i], name, len) == 0) {
+    if (s->member_names[i]->len == name->len &&
+        memcmp(s->member_names[i]->str, name->str, name->len) == 0) {
       return i;
     }
   }
-  error("failed to get member offset at '%.*s'", len, name);
+  error("failed to get member offset at '%.*s'", name->len, name->str);
   return 0;
 }
 
@@ -477,28 +475,26 @@ size_t calc_size_of_type(type_t *t) {
   return 0;
 }
 typedef struct type_alias_t {
-  char *name;
-  size_t name_length;
+  token_t *name;
   struct type_t *type;
   struct type_alias_t *next;
 } type_alias_t;
 
 type_alias_t *type_alias = NULL;
 
-void add_type_alias(char *name, size_t name_length, type_t *type) {
+void add_type_alias(token_t *name, type_t *type) {
   type_alias_t *t = calloc(1, sizeof(type_alias_t));
   t->name = name;
-  t->name_length = name_length;
   t->type = type;
   t->next = type_alias;
   type_alias = t;
 }
 
-type_t *find_type_alias(char *name, size_t name_length) {
+type_t *find_type_alias(token_t *name) {
   type_alias_t *t = type_alias;
   while (t) {
-    if (t->name_length == name_length &&
-        memcmp(t->name, name, name_length) == 0) {
+    if (t->name->len == name->len &&
+        memcmp(t->name->str, name->str, name->len) == 0) {
       return t->type;
     }
     t = t->next;
@@ -508,8 +504,7 @@ type_t *find_type_alias(char *name, size_t name_length) {
 
 typedef struct type_and_name_t {
   type_t *t;
-  char *name;
-  size_t len;
+  token_t *name;
 } type_and_name_t;
 
 type_and_name_t *parse_type_and_name() {
@@ -546,7 +541,7 @@ type_and_name_t *parse_type_and_name() {
     tok = consume_ident();
     a->t = new_type();
     a->t->ty = TYPE_STRUCT;
-    a->t->struct_type = find_type_struct(tok->str, tok->len);
+    a->t->struct_type = find_type_struct(tok);
 
     if (!a->t->struct_type) {
       // struct definition
@@ -561,8 +556,6 @@ type_and_name_t *parse_type_and_name() {
         expect(";");
         a->t->struct_type->member_names[a->t->struct_type->member_count] =
             t->name;
-        a->t->struct_type
-            ->member_name_lengths[a->t->struct_type->member_count] = t->len;
         a->t->struct_type->member_types[a->t->struct_type->member_count] = t->t;
 
         a->t->struct_type->member_offsets[a->t->struct_type->member_count] =
@@ -583,7 +576,7 @@ type_and_name_t *parse_type_and_name() {
     }
     // struct variable (may be function definition)
   } else {
-    a->t = find_type_alias(tok->str, tok->len);
+    a->t = find_type_alias(tok);
     if (!a->t) return NULL;
     consume_ident();
   }
@@ -593,8 +586,7 @@ type_and_name_t *parse_type_and_name() {
     a->t = new_type_with(TYPE_POINTER, a->t);
   }
 
-  a->name = tok->str;
-  a->len = tok->len;
+  a->name = tok;
 
   if (consume("[")) {
     a->t = new_type_with(TYPE_ARRAY, a->t);
@@ -632,7 +624,7 @@ type_and_name_t *parse_type_and_name() {
         a->t->args[i] = new_type();
         a->t->args[i]->ty = TYPE_VOID;
       } else {
-        a->t->args[i] = find_type_alias(tok->str, tok->len);
+        a->t->args[i] = find_type_alias(tok);
         if (!a->t) return NULL;
       }
 
@@ -717,8 +709,7 @@ typedef struct node_t {
   type_t *type;
 
   // for variable
-  char *name;
-  int len;
+  token_t *name;
 
   // for 'if'/'while'
   struct node_t *cond;
@@ -745,8 +736,7 @@ typedef struct node_t {
 
 typedef struct local_variable_t {
   struct local_variable_t *next;
-  char *name;  // var's name
-  size_t len;  // var name's length
+  token_t *name;
   size_t size;
   size_t size_on_stack;  // aligned size
   int offset;            // from fp
@@ -755,9 +745,10 @@ typedef struct local_variable_t {
 
 local_variable_t *local_variables = NULL;
 
-local_variable_t *find_local_variable(char *name, size_t len) {
+local_variable_t *find_local_variable(token_t *name) {
   for (local_variable_t *var = local_variables; var; var = var->next) {
-    if (var->len == len && !memcmp(name, var->name, var->len)) {
+    if (var->name->len == name->len &&
+        !memcmp(name->str, var->name->str, var->name->len)) {
       return var;
     }
   }
@@ -773,11 +764,10 @@ size_t calc_total_local_variable_size_on_stack(local_variable_t *var) {
   return size;
 }
 
-void add_local_variable(char *name, size_t len, type_t *ty) {
+void add_local_variable(token_t *name, type_t *ty) {
   local_variable_t *lvar = calloc(1, sizeof(local_variable_t));
   lvar->next = local_variables;
   lvar->name = name;
-  lvar->len = len;
   lvar->type = ty;
   lvar->size = calc_size_of_type(ty);
   lvar->size_on_stack = (lvar->size + 3) / 4 * 4;  // align 4
@@ -787,8 +777,7 @@ void add_local_variable(char *name, size_t len, type_t *ty) {
 
 typedef struct global_variable_t {
   struct global_variable_t *next;
-  char *name;  // var's name
-  size_t len;  // var name's length
+  token_t *name;
   size_t size;
   type_t *type;
 
@@ -800,32 +789,30 @@ global_variable_t *global_variables = NULL;
 
 global_variable_t *find_global_variable(token_t *tok) {
   for (global_variable_t *var = global_variables; var; var = var->next) {
-    if (var->len == tok->len && !memcmp(tok->str, var->name, var->len)) {
+    if (var->name->len == tok->len &&
+        !memcmp(tok->str, var->name->str, var->name->len)) {
       return var;
     }
   }
   return NULL;
 }
 
-void add_global_variable(char *name, size_t len, type_t *ty) {
+void add_global_variable(token_t *name, type_t *ty) {
   global_variable_t *var = calloc(1, sizeof(global_variable_t));
   var->next = global_variables;
   var->name = name;
-  var->len = len;
   var->type = ty;
   var->size = calc_size_of_type(ty);
   global_variables = var;
 }
 
-constant_string_t *add_global_variable_with_constant_string(char *name,
-                                                            size_t len,
+constant_string_t *add_global_variable_with_constant_string(token_t *name,
                                                             type_t *ty,
                                                             token_t *tok) {
   global_variable_t *var = calloc(1, sizeof(global_variable_t));
   var->constant_string = add_constant_string(tok);
   var->next = global_variables;
   var->name = name;
-  var->len = len;
   var->type = ty;
   var->size = calc_size_of_type(ty);
   global_variables = var;
@@ -842,8 +829,7 @@ typedef enum {
 
 typedef struct declaration_t {
   declaration_type_t declaration_type;
-  char *name;
-  size_t name_length;
+  token_t *name;
   type_t *type;
 
   token_t *func_arg[MAX_ARGS];
@@ -965,8 +951,7 @@ node_t *parse_exp(int min_bind_pow) {
     if (consume("(")) {
       // function call
       node->kind = NODE_CALL;
-      node->name = tok->str;
-      node->len = tok->len;
+      node->name = tok;
       for (size_t i = 0; i < MAX_ARGS; i++) {
         if (consume(")")) {
           break;
@@ -981,7 +966,7 @@ node_t *parse_exp(int min_bind_pow) {
       }
     } else {
       // variable
-      local_variable_t *lvar = find_local_variable(tok->str, tok->len);
+      local_variable_t *lvar = find_local_variable(tok);
       global_variable_t *gvar = find_global_variable(tok);
       if (lvar) {
         node->kind = NODE_LOCAL_VARIABLE;
@@ -991,15 +976,12 @@ node_t *parse_exp(int min_bind_pow) {
         node->kind = NODE_GLOBAL_VARIABLE;
         node->type = gvar->type;
         node->name = gvar->name;
-        node->len = gvar->len;
       } else {
         // skip for now, because of struct member access
         node->kind = NODE_STRUCT_MEMBER;
-        node->name = tok->str;
-        node->len = tok->len;
+        node->name = tok;
       }
-      node->name = tok->str;
-      node->len = tok->len;
+      node->name = tok;
     }
   }
 
@@ -1115,13 +1097,13 @@ node_t *parse_stmt() {
   if (type_and_name) {
     node->kind = NODE_VAR_DEC;
     node->name = type_and_name->name;
-    node->len = type_and_name->len;
 
-    add_local_variable(node->name, node->len, type_and_name->t);
+    add_local_variable(node->name, type_and_name->t);
     if (consume("=")) {
-      local_variable_t *lvar = find_local_variable(node->name, node->len);
+      local_variable_t *lvar = find_local_variable(node->name);
       node->lhs = new_node();
       node->lhs->kind = NODE_LOCAL_VARIABLE;
+      node->lhs->name = lvar->name;
       node->lhs->offset = lvar->offset;
       node->lhs->type = lvar->type;
       node->type = node->lhs->type;
@@ -1230,8 +1212,7 @@ void add_type(node_t *node) {
       add_type(node->lhs);
       assert(node->lhs->type->ty == TYPE_STRUCT);
       // assert(node->rhs->kind == NODE_STRUCT_MEMBER);
-      i = get_member_index(node->lhs->type->struct_type, node->rhs->name,
-                           node->rhs->len);
+      i = get_member_index(node->lhs->type->struct_type, node->rhs->name);
       node->rhs->kind = NODE_STRUCT_MEMBER;
       node->rhs->offset = node->lhs->type->struct_type->member_offsets[i];
       node->rhs->type = node->lhs->type->struct_type->member_types[i];
@@ -1243,7 +1224,7 @@ void add_type(node_t *node) {
       assert(node->lhs->type->ptr_to->ty == TYPE_STRUCT);
       // assert(node->rhs->kind == NODE_STRUCT_MEMBER);
       i = get_member_index(node->lhs->type->ptr_to->struct_type,
-                           node->rhs->name, node->rhs->len);
+                           node->rhs->name);
       node->rhs->kind = NODE_STRUCT_MEMBER;
       node->rhs->offset =
           node->lhs->type->ptr_to->struct_type->member_offsets[i];
@@ -1333,8 +1314,7 @@ declaration_t *parse_declaration() {
     type_and_name = parse_type_and_name();
     d->type = type_and_name->t;
     d->name = type_and_name->name;
-    d->name_length = type_and_name->len;
-    add_type_alias(type_and_name->name, type_and_name->len, type_and_name->t);
+    add_type_alias(type_and_name->name, type_and_name->t);
     expect(";");
     return d;
   }
@@ -1348,9 +1328,7 @@ declaration_t *parse_declaration() {
       d->declaration_type = DECLARATION_GLOBAL_VARIABLE;
       d->type = type_and_name->t;
       d->name = type_and_name->name;
-      d->name_length = type_and_name->len;
-      add_global_variable(type_and_name->name, type_and_name->len,
-                          type_and_name->t);
+      add_global_variable(type_and_name->name, type_and_name->t);
       return d;
     }
   }
@@ -1359,13 +1337,12 @@ declaration_t *parse_declaration() {
     d->declaration_type = DECLARATION_GLOBAL_VARIABLE;
     d->type = type_and_name->t;
     d->name = type_and_name->name;
-    d->name_length = type_and_name->len;
     tok = consume_reserved(TK_STRING);
     if (!tok) {
       error("not supported yet");
     }
     d->constant_string = add_global_variable_with_constant_string(
-        type_and_name->name, type_and_name->len, type_and_name->t, tok);
+        type_and_name->name, type_and_name->t, tok);
     expect(";");
     return d;
   }
@@ -1375,19 +1352,17 @@ declaration_t *parse_declaration() {
   }
 
   if (type_and_name->t->ty == TYPE_STRUCT &&
-      !find_type_struct(type_and_name->name, type_and_name->len)) {
+      !find_type_struct(type_and_name->name)) {
     type_struct_t *ts = new_type_struct();
     size_t offset = 0;
     size_t index = 0;
 
     ts->name = type_and_name->name;
-    ts->len = type_and_name->len;
 
     // struct definition
     while (!consume("}")) {
       type_and_name_t *tn = parse_type_and_name();
       ts->member_names[index] = tn->name;
-      ts->member_name_lengths[index] = tn->len;
       ts->member_types[index] = tn->t;
       ts->member_offsets[index] = offset;
       ts->member_count = index + 1;
@@ -1403,12 +1378,10 @@ declaration_t *parse_declaration() {
   d->type = type_and_name->t;
   d->func_arg_count = type_and_name->t->arg_count;
   d->name = type_and_name->name;
-  d->name_length = type_and_name->len;
 
   for (size_t i = 0; i < d->func_arg_count; i++) {
     d->func_arg[i] = type_and_name->t->arg_names[i];
-    add_local_variable(d->func_arg[i]->str, d->func_arg[i]->len,
-                       type_and_name->t->args[i]);
+    add_local_variable(d->func_arg[i], type_and_name->t->args[i]);
   }
 
   for (size_t i = 0; i < MAX_STATEMENTS; i++) {
@@ -1503,7 +1476,7 @@ void print_node(node_t *node) {
     case NODE_LOCAL_VARIABLE:
     case NODE_GLOBAL_VARIABLE:
     case NODE_STRUCT_MEMBER: {
-      print_str_len(stderr, node->name, node->len);
+      print_str_len(stderr, node->name->str, node->name->len);
       break;
     }
     case NODE_ASSIGN:
@@ -1556,7 +1529,7 @@ void print_node(node_t *node) {
       fprintf(stderr, "}");
       break;
     case NODE_CALL: {
-      print_str_len(stderr, node->name, node->len);
+      print_str_len(stderr, node->name->str, node->name->len);
       fprintf(stderr, "(");
       for (size_t i = 0; i < node->args_count; i++) {
         if (0 < i) {
@@ -1577,7 +1550,7 @@ void print_node(node_t *node) {
       break;
     case NODE_VAR_DEC:
       fprintf(stderr, "int ");
-      print_str_len(stderr, node->name, node->len);
+      print_str_len(stderr, node->name->str, node->name->len);
       fprintf(stderr, ";\n");
       break;
     default:
@@ -1589,7 +1562,7 @@ void print_node(node_t *node) {
 
 void print_declaration(declaration_t *dec) {
   print_type(dec->type);
-  print_str_len(stderr, dec->name, dec->name_length);
+  print_str_len(stderr, dec->name->str, dec->name->len);
   if (dec->declaration_type == DECLARATION_GLOBAL_VARIABLE) {
     fprintf(stderr, ";\n");
   } else if (dec->declaration_type == DECLARATION_FUNCTION) {
@@ -1607,7 +1580,7 @@ void print_declaration(declaration_t *dec) {
     }
     fprintf(stderr, "}\n");
   } else if (dec->declaration_type == DECLARATION_TYPEDEF) {
-    print_str_len(stderr, dec->name, dec->name_length);
+    print_str_len(stderr, dec->name->str, dec->name->len);
     fprintf(stderr, "\n");
   } else {
     error("failed to print declaration! type: %d", dec->declaration_type);
@@ -1649,16 +1622,16 @@ void gen_lval(node_t *node) {
   if (node->kind == NODE_LOCAL_VARIABLE) {
     // local variable address
     printf("%saddi t0, fp, %d\t\t# local variable: ", indent, node->offset);
-    print_str_len(stdout, node->name, node->len);
+    print_str_len(stdout, node->name->str, node->name->len);
     printf("\n");
     gen_push("t0");
   } else if (node->kind == NODE_GLOBAL_VARIABLE) {
     // global variable address
     printf("%slui t0, %%hi(", indent);
-    print_str_len(stdout, node->name, node->len);
+    print_str_len(stdout, node->name->str, node->name->len);
     printf(")\n");
     printf("%saddi t0, t0, %%lo(", indent);
-    print_str_len(stdout, node->name, node->len);
+    print_str_len(stdout, node->name->str, node->name->len);
     printf(")\n");
     gen_push("t0");
   } else if (node->kind == NODE_DEREF) {
@@ -1667,14 +1640,14 @@ void gen_lval(node_t *node) {
     gen_lval(node->lhs);
     gen_pop("t0");
     printf("%saddi t0, t0, %d\t\t# member: ", indent, node->rhs->offset);
-    print_str_len(stdout, node->rhs->name, node->rhs->len);
+    print_str_len(stdout, node->rhs->name->str, node->rhs->name->len);
     printf("\n");
     gen_push("t0");
   } else if (node->kind == NODE_ARROW) {
     gen(node->lhs);
     gen_pop("t0");
     printf("%saddi t0, t0, %d\t\t# member: ", indent, node->rhs->offset);
-    print_str_len(stdout, node->rhs->name, node->rhs->len);
+    print_str_len(stdout, node->rhs->name->str, node->rhs->name->len);
     printf("\n");
     gen_push("t0");
   } else {
@@ -1998,8 +1971,8 @@ void gen(node_t *node) {
       }
       break;
     case NODE_CALL: {
-      char *name = calloc(node->len + 1, 1);
-      memcpy(name, node->name, node->len);
+      char *name = calloc(node->name->len + 1, 1);
+      memcpy(name, node->name->str, node->name->len);
 
       for (int i = 0; i < node->args_count; i++) {
         gen(node->args[node->args_count - 1 - i]);
@@ -2044,12 +2017,12 @@ void print_func_prologue(declaration_t *dec) {
   printf("  .text\n");
   printf("  .align 4\n");
   printf("  .globl    ");
-  print_str_len(stdout, dec->name, dec->name_length);
+  print_str_len(stdout, dec->name->str, dec->name->len);
   printf("\n");
   printf("  .type	    ");
-  print_str_len(stdout, dec->name, dec->name_length);
+  print_str_len(stdout, dec->name->str, dec->name->len);
   printf(", @function\n");
-  print_str_len(stdout, dec->name, dec->name_length);
+  print_str_len(stdout, dec->name->str, dec->name->len);
   printf(":\n");
   gen_push("fp");  // save fp
 
@@ -2059,8 +2032,7 @@ void print_func_prologue(declaration_t *dec) {
   // push arguments
   for (size_t i = 0; i < dec->func_arg_count; i++) {
     char reg[] = "a0";
-    local_variable_t *var =
-        find_local_variable(dec->func_arg[i]->str, dec->func_arg[i]->len);
+    local_variable_t *var = find_local_variable(dec->func_arg[i]);
     reg[1] += i;
     fprintf(stderr, "push arg %s\n", reg);
     printf("%ssw %s, %d(fp)\n", indent, reg, var->offset);
@@ -2074,18 +2046,18 @@ void gen_declaration(declaration_t *dec) {
   switch (dec->declaration_type) {
     case DECLARATION_GLOBAL_VARIABLE:
       printf("  .globl  ");
-      print_str_len(stdout, dec->name, dec->name_length);
+      print_str_len(stdout, dec->name->str, dec->name->len);
       printf("\n");
       printf("  .section  .sdata,\"aw\"\n");
       printf("  .type     ");
-      print_str_len(stdout, dec->name, dec->name_length);
+      print_str_len(stdout, dec->name->str, dec->name->len);
       printf(", @object\n");
 
       printf("  .size     ");
-      print_str_len(stdout, dec->name, dec->name_length);
+      print_str_len(stdout, dec->name->str, dec->name->len);
       printf(", %zd\n", calc_size_of_type(dec->type));
 
-      print_str_len(stdout, dec->name, dec->name_length);
+      print_str_len(stdout, dec->name->str, dec->name->len);
       printf(":\n");
       if (dec->constant_string) {
         printf("  .word .LC%zd", dec->constant_string->id);
