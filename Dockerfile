@@ -36,11 +36,13 @@ RUN \
     cd riscv-gnu-toolchain && \
     git checkout 2022.11.23 && \
     ./configure --prefix=/usr/local/gcc/riscv32-unknown-elf --with-arch=rv32i --with-abi=ilp32 && make -j12 && \
+    make clean && make distclean && \
+    ./configure --prefix=/usr/local/gcc/riscv32im-unknown-elf --with-arch=rv32im --with-abi=ilp32 && make -j12 && \
     ./configure --prefix=/usr/local/gcc/riscv32-linux-gnu --with-arch=rv32g && make linux -j12 && \
     rm ${TMP_PATH} -f -r
 
 
-ENV PATH $PATH:/usr/local/gcc/riscv32-linux-gnu/bin:/usr/local/gcc/riscv32-unknown-elf/bin:/usr/local/qemu/bin
+ENV PATH $PATH:/usr/local/gcc/riscv32-linux-gnu/bin:/usr/local/gcc/riscv32im-unknown-elf:/usr/local/gcc/riscv32-unknown-elf/bin:/usr/local/qemu/bin
 
 
 CMD ["/bin/bash"]
