@@ -406,6 +406,8 @@ typedef struct type_t {
 
   // TYPE_STRUCT
   type_struct_t *struct_type;
+
+  token_t *name;  // for TEMPORAL TYPE
 } type_t;
 
 type_t *new_type() { return calloc(1, sizeof(type_t)); }
@@ -511,6 +513,8 @@ type_and_name_t *parse_type_and_name() {
   type_and_name_t *a = NULL;
   token_t *tok;
   type_t *tmp;
+  size_t offset = 0;
+  type_and_name_t *t;
   tok = consume_any_type();
 
   if (!tok) {
@@ -544,35 +548,52 @@ type_and_name_t *parse_type_and_name() {
     a->t->struct_type = find_type_struct(tok);
 
     if (!a->t->struct_type) {
-      // struct definition
-      a->t->struct_type = new_type_struct();
-      expect("{");
-      size_t offset = 0;
-      while (1) {
-        type_and_name_t *t = parse_type_and_name();
-        if (!t) {
-          break;
-        }
-        expect(";");
-        a->t->struct_type->member_names[a->t->struct_type->member_count] =
-            t->name;
-        a->t->struct_type->member_types[a->t->struct_type->member_count] = t->t;
+      // struct definition or opaque pointer
+      if (consume("{")) {
+        // struct definition
+        a->t->struct_type = new_type_struct();
+        while (1) {
+          t = parse_type_and_name();
+          if (!t) {
+            break;
+          }
+          expect(";");
+          a->t->struct_type->member_names[a->t->struct_type->member_count] =
+              t->name;
+          a->t->struct_type->member_types[a->t->struct_type->member_count] =
+              t->t;
 
-        a->t->struct_type->member_offsets[a->t->struct_type->member_count] =
-            offset;
-        offset += calc_size_of_type(
-            a->t->struct_type->member_types[a->t->struct_type->member_count]);
-        if (offset % 4 != 0) {
-          offset += 4 - (offset % 4);
+          a->t->struct_type->member_offsets[a->t->struct_type->member_count] =
+              offset;
+          offset += calc_size_of_type(
+              a->t->struct_type->member_types[a->t->struct_type->member_count]);
+          if (offset % 4 != 0) {
+            offset += 4 - (offset % 4);
+          }
+          a->t->struct_type->member_count++;
         }
-        a->t->struct_type->member_count++;
+        // register struct type
+        add_type_struct(tok, a->t->struct_type);
+
+        expect("}");
+        // expect(";");
+        return a;
+      } else {
+        // should be pointer of struct
+        a->t->struct_type = new_type_struct();
+        a->t->name = tok;
+
+        while (1) {
+          if (consume("*")) {
+            a->t = new_type_with(TYPE_POINTER, a->t);
+          } else {
+            break;
+          }
+        }
+        a->name = consume_ident();
+        // expect(";");
+        return a;
       }
-      // register struct type
-      add_type_struct(tok, a->t->struct_type);
-
-      expect("}");
-      // expect(";");
-      return a;
     }
     // struct variable (may be function definition)
   } else {
@@ -607,25 +628,32 @@ type_and_name_t *parse_type_and_name() {
           error("call f(x y)? needs comma?\n");
         }
       }
-      tok = consume_any_type();
-      if (!tok) {
+      if (consume_reserved(TK_STRUCT)) {
         tok = consume_ident();
-      }
-      if (tok->len == 3 && memcmp(tok->str, "int", 3) == 0) {
         a->t->args[i] = new_type();
-        a->t->args[i]->ty = TYPE_INT;
-      } else if (tok->len == 4 && memcmp(tok->str, "char", 4) == 0) {
-        a->t->args[i] = new_type();
-        a->t->args[i]->ty = TYPE_CHAR;
-      } else if (tok->len == 6 && memcmp(tok->str, "size_t", 6) == 0) {
-        a->t->args[i] = new_type();
-        a->t->args[i]->ty = TYPE_INT;
-      } else if (tok->len == 4 && memcmp(tok->str, "void", 4) == 0) {
-        a->t->args[i] = new_type();
-        a->t->args[i]->ty = TYPE_VOID;
+        a->t->args[i]->ty = TYPE_STRUCT;
+        a->t->args[i]->struct_type = find_type_struct(tok);
       } else {
-        a->t->args[i] = find_type_alias(tok);
-        if (!a->t) return NULL;
+        tok = consume_any_type();
+        if (!tok) {
+          tok = consume_ident();
+        }
+        if (tok->len == 3 && memcmp(tok->str, "int", 3) == 0) {
+          a->t->args[i] = new_type();
+          a->t->args[i]->ty = TYPE_INT;
+        } else if (tok->len == 4 && memcmp(tok->str, "char", 4) == 0) {
+          a->t->args[i] = new_type();
+          a->t->args[i]->ty = TYPE_CHAR;
+        } else if (tok->len == 6 && memcmp(tok->str, "size_t", 6) == 0) {
+          a->t->args[i] = new_type();
+          a->t->args[i]->ty = TYPE_INT;
+        } else if (tok->len == 4 && memcmp(tok->str, "void", 4) == 0) {
+          a->t->args[i] = new_type();
+          a->t->args[i]->ty = TYPE_VOID;
+        } else {
+          a->t->args[i] = find_type_alias(tok);
+          if (!a->t) return NULL;
+        }
       }
 
       while (!(tok = consume_ident_or_fail())) {

@@ -3,9 +3,9 @@
 # set -x
 
 # GCC="podman run --rm -v ${PWD}:/work:z rv32-compiler riscv32-unknown-elf-gcc"
-GCC=/home/fukuda/opt/gcc/riscv32-unknown-elf-rv32im/bin/riscv32-unknown-elf-gcc
+GCC=riscv32-unknown-elf-gcc
 # QEMU="podman run --rm -v ${PWD}:/work:z rv32-compiler qemu-riscv32"
-QEMU=qemu-riscv32
+QEMU=qemu-riscv32-static
 TMP_DIR=/tmp
 
 assert() {

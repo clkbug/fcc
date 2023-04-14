@@ -40,8 +40,10 @@ TEST_STDOUT := $(TEST_EXE:.exe=.stdout)
 TEST_CMP_RESULT := $(SRCS:.c=.cmp)
 
 FCC := ../fcc
-GCC := podman run --rm -v ${PWD}:/work:z rv32-compiler /usr/local/gcc/riscv32im-unknown-elf/bin/riscv32-unknown-elf-gcc
-QEMU := podman run --rm -v ${PWD}:/work:z rv32-compiler qemu-riscv32
+# GCC := podman run --rm -v ${PWD}:/work:z rv32-compiler /usr/local/gcc/riscv32im-unknown-elf/bin/riscv32-unknown-elf-gcc
+# QEMU := podman run --rm -v ${PWD}:/work:z rv32-compiler qemu-riscv32
+GCC := riscv32-unknown-elf-gcc
+QEMU := qemu-riscv32-static
 
 all: $(TEST_CMP_RESULT) $(REF_STDOUT) $(REF_EXE) $(TEST_STDOUT) $(TEST_ASM) $(TEST_EXE)
 	@echo all tests passed!
