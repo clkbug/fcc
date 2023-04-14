@@ -2136,6 +2136,8 @@ void gen_declaration(declaration_t *dec) {
       print_str_len(stdout, dec->name->str, dec->name->len);
       printf(", %zd\n", calc_size_of_type(dec->type));
 
+      printf("  .balign    8\n");
+
       print_str_len(stdout, dec->name->str, dec->name->len);
       printf(":\n");
       if (dec->constant_string) {
