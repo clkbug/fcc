@@ -27,6 +27,7 @@ SRCS := \
 	struct_arrow.c \
 	struct_alignment.c \
 	struct_recursive.c \
+	logicalop.c \
 	# post_increment.c 	\
 
 

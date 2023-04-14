@@ -217,7 +217,8 @@ token_t *tokenize(char *p) {
       if (memcmp(p, "==", 2) == 0 || memcmp(p, "!=", 2) == 0 ||
           memcmp(p, "<=", 2) == 0 || memcmp(p, ">=", 2) == 0 ||
           memcmp(p, "++", 2) == 0 || memcmp(p, "--", 2) == 0 ||
-          memcmp(p, "->", 2) == 0) {
+          memcmp(p, "->", 2) == 0 || memcmp(p, "||", 2) == 0 ||
+          memcmp(p, "&&", 2) == 0) {
         cur = new_token(TK_RESERVED, cur, p, 2);
         p += 2;
         continue;
@@ -705,6 +706,8 @@ typedef enum {
   NODE_LE,
   NODE_GT,
   NODE_GE,
+  NODE_LOGICAL_AND,
+  NODE_LOGICAL_OR,
   NODE_NUM,
   NODE_CONST_STRING,
   NODE_ASSIGN,
@@ -911,6 +914,11 @@ const int COMPARE_RIGHT_BINDING_POWER = 101;
 const int EQ_LEFT_BINDING_POWER = 90;
 const int EQ_RIGHT_BINDING_POWER = 91;
 
+const int LOGICAL_AND_LEFT_BINDING_POWER = 50;
+const int LOGICAL_AND_RIGHT_BINDING_POWER = 51;
+const int LOGICAL_OR_LEFT_BINDING_POWER = 40;
+const int LOGICAL_OR_RIGHT_BINDING_POWER = 41;
+
 const int ASSIGN_LEFT_BINDING_POWER = 21;
 const int ASSIGN_RIGHT_BINDING_POWER = 20;
 
@@ -1070,6 +1078,18 @@ node_t *parse_exp(int min_bind_pow) {
         return node;
       }
       node = parse_follower(node, "!=", EQ_RIGHT_BINDING_POWER, NODE_NEQ);
+    } else if (peek("&&")) {
+      if (LOGICAL_AND_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      node = parse_follower(node, "&&", LOGICAL_AND_RIGHT_BINDING_POWER,
+                            NODE_LOGICAL_AND);
+    } else if (peek("||")) {
+      if (LOGICAL_OR_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      node = parse_follower(node, "||", LOGICAL_OR_RIGHT_BINDING_POWER,
+                            NODE_LOGICAL_OR);
     } else if (peek("=")) {
       if (ASSIGN_LEFT_BINDING_POWER <= min_bind_pow) {
         return node;
@@ -1232,6 +1252,8 @@ void add_type(node_t *node) {
     case NODE_EQ:
     case NODE_NEQ:
     case NODE_ASSIGN:
+    case NODE_LOGICAL_AND:
+    case NODE_LOGICAL_OR:
       add_type(node->lhs);
       add_type(node->rhs);
       node->type = node->lhs->type;
@@ -1481,6 +1503,12 @@ void print_node(node_t *node) {
       break;
     case NODE_GE:
       print_node_binop(node, ">=");
+      break;
+    case NODE_LOGICAL_AND:
+      print_node_binop(node, "&&");
+      break;
+    case NODE_LOGICAL_OR:
+      print_node_binop(node, "||");
       break;
     case NODE_EQ:
       print_node_binop(node, "==");
@@ -1816,6 +1844,29 @@ void gen(node_t *node) {
       printf("%sor   t0, t2, t3\n", indent);
       gen_push("t0");
       break;
+    case NODE_LOGICAL_AND: {
+      int and_end_index = gen_label_index();
+      gen(node->lhs);
+      gen_pop("t0");
+      printf("%sbeqz t0, .L.and.end.%d\t# logical and 1\n", indent,
+             and_end_index);
+      gen(node->rhs);
+      gen_pop("t0");
+      printf(".L.and.end.%d:\n", and_end_index);
+      gen_push("t0");
+      break;
+    }
+    case NODE_LOGICAL_OR: {
+      int or_end_index = gen_label_index();
+      gen(node->lhs);
+      gen_pop("t0");
+      printf("%sbnez t0, .L.or.end.%d\t# logical or 1\n", indent, or_end_index);
+      gen(node->rhs);
+      gen_pop("t0");
+      printf(".L.or.end.%d:\n", or_end_index);
+      gen_push("t0");
+      break;
+    }
     case NODE_EQ:
       gen(node->lhs);
       gen(node->rhs);
