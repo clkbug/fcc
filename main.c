@@ -255,6 +255,8 @@ token_t *tokenize(char *p) {
         cur->kind = TK_TYPE_CHAR;
       } else if (compare_token(cur, "size_t", 6)) {
         cur->kind = TK_TYPE_INT;
+      } else if (compare_token(cur, "bool", 4)) {
+        cur->kind = TK_TYPE_INT;
       } else if (compare_token(cur, "void", 4)) {
         cur->kind = TK_TYPE_VOID;
       } else if (compare_token(cur, "typedef", 7)) {
@@ -523,15 +525,13 @@ type_and_name_t *parse_type_and_name() {
   }
 
   a = calloc(sizeof(type_and_name_t), 1);
-  if (compare_token(tok, "int", 3)) {
+  if (compare_token(tok, "int", 3) || compare_token(tok, "size_t", 6) ||
+      compare_token(tok, "bool", 4)) {
     a->t = new_type();
     a->t->ty = TYPE_INT;
   } else if (compare_token(tok, "char", 4)) {
     a->t = new_type();
     a->t->ty = TYPE_CHAR;
-  } else if (compare_token(tok, "size_t", 6)) {
-    a->t = new_type();
-    a->t->ty = TYPE_INT;
   } else if (compare_token(tok, "void", 4)) {
     a->t = new_type();
     a->t->ty = TYPE_VOID;
@@ -632,15 +632,14 @@ type_and_name_t *parse_type_and_name() {
         if (!tok) {
           tok = consume_ident();
         }
-        if (tok->len == 3 && memcmp(tok->str, "int", 3) == 0) {
+        if ((tok->len == 3 && memcmp(tok->str, "int", 3) == 0) ||
+            (tok->len == 6 && memcmp(tok->str, "size_t", 6) == 0) ||
+            (tok->len == 4 && memcmp(tok->str, "bool", 4) == 0)) {
           a->t->args[i] = new_type();
           a->t->args[i]->ty = TYPE_INT;
         } else if (tok->len == 4 && memcmp(tok->str, "char", 4) == 0) {
           a->t->args[i] = new_type();
           a->t->args[i]->ty = TYPE_CHAR;
-        } else if (tok->len == 6 && memcmp(tok->str, "size_t", 6) == 0) {
-          a->t->args[i] = new_type();
-          a->t->args[i]->ty = TYPE_INT;
         } else if (tok->len == 4 && memcmp(tok->str, "void", 4) == 0) {
           a->t->args[i] = new_type();
           a->t->args[i]->ty = TYPE_VOID;
