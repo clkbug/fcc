@@ -39,6 +39,23 @@ void test_and() {
   return;
 }
 
+void test_andnot() {
+  if (!return_false() && !return_false()) {
+    putchar('a');
+  }
+  if (!return_false() && !return_true()) {
+    putchar('b');
+  }
+  if (!return_true() && !return_false()) {
+    putchar('c');
+  }
+  if (!return_true() && !return_true()) {
+    putchar('d');
+  }
+  putchar('\n');
+  return;
+}
+
 void test_and3() {
   if (return_false() && return_false() && return_false()) {
     putchar('a');
@@ -79,6 +96,23 @@ void test_or() {
     putchar('c');
   }
   if (return_true() || return_true()) {
+    putchar('d');
+  }
+  putchar('\n');
+  return;
+}
+
+void test_ornot() {
+  if (!return_false() || !return_false()) {
+    putchar('a');
+  }
+  if (!return_false() || !return_true()) {
+    putchar('b');
+  }
+  if (!return_true() || !return_false()) {
+    putchar('c');
+  }
+  if (!return_true() || !return_true()) {
     putchar('d');
   }
   putchar('\n');
@@ -180,5 +214,7 @@ int main() {
   test_or3();
   test_andor3();
   test_orand3();
+  test_andnot();
+  test_ornot();
   return 0;
 }

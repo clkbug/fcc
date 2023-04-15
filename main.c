@@ -905,10 +905,13 @@ const int POST_INC_LEFT_BINDING_POW = 200;
 const int MEMBER_ACCESS_LEFT_BINDING_POW = 200;
 const int MEMBER_ACCESS_RIGHT_BINDING_POW = 201;
 
+// ++/-- +/- & !
 const int NEG_RIGHT_BIND_POW = 151;
 const int ADDR_RIGHT_BIND_POW = 151;
 const int DEREF_RIGHT_BIND_POW = 151;
 const int PRE_INC_RIGHT_BIND_POW = 151;
+const int LOGICAL_NOT_RIGHT_BIND_POW = 151;
+
 const int MUL_LEFT_BINDING_POWER = 130;
 const int MUL_RIGHT_BINDING_POWER = 131;
 const int DIV_LEFT_BINDING_POWER = 130;
@@ -962,6 +965,10 @@ node_t *parse_exp(int min_bind_pow) {
   } else if (consume("&")) {
     node_t *follower = parse_exp(ADDR_RIGHT_BIND_POW);
     node->kind = NODE_ADDR;
+    node->rhs = follower;
+  } else if (consume("!")) {
+    node_t *follower = parse_exp(LOGICAL_NOT_RIGHT_BIND_POW);
+    node->kind = NODE_LOGICAL_NOT;
     node->rhs = follower;
   } else if (consume("*")) {
     node_t *follower = parse_exp(DEREF_RIGHT_BIND_POW);
@@ -1374,6 +1381,10 @@ void add_type(node_t *node) {
       add_type(node->rhs);
       node->type = node->rhs->type->ptr_to;
       break;
+    case NODE_LOGICAL_NOT:
+      add_type(node->rhs);
+      node->type = node->rhs->type;
+      break;
     case NODE_VAR_DEC:
       assert((node->lhs && node->rhs) || (!node->lhs && !node->rhs));
       if (node->lhs) {
@@ -1649,6 +1660,10 @@ void print_node(node_t *node) {
       fprintf(stderr, "*");
       print_node(node->rhs);
       break;
+    case NODE_LOGICAL_NOT:
+      fprintf(stderr, "!");
+      print_node(node->rhs);
+      break;
     case NODE_VAR_DEC:
       fprintf(stderr, "int ");
       print_str_len(stderr, node->name->str, node->name->len);
@@ -1912,6 +1927,12 @@ void gen(node_t *node) {
       gen_push("t0");
       break;
     }
+    case NODE_LOGICAL_NOT:
+      gen(node->rhs);
+      gen_pop("t0");
+      printf("%sseqz t0, t0\n", indent);
+      gen_push("t0");
+      break;
     case NODE_EQ:
       gen(node->lhs);
       gen(node->rhs);
