@@ -43,7 +43,8 @@ const token_kind_t TK_TYPE_VOID = 13;
 const token_kind_t TK_STRING = 14;
 const token_kind_t TK_TYPEDEF = 15;
 const token_kind_t TK_STRUCT = 16;
-const token_kind_t TK_EOF = 17;
+const token_kind_t TK_SIZEOF = 17;
+const token_kind_t TK_EOF = 18;
 
 struct token_t {
   token_kind_t kind;
@@ -263,6 +264,8 @@ token_t *tokenize(char *p) {
         cur->kind = TK_TYPEDEF;
       } else if (compare_token(cur, "struct", 6)) {
         cur->kind = TK_STRUCT;
+      } else if (compare_token(cur, "sizeof", 6)) {
+        cur->kind = TK_SIZEOF;
       }
 
       continue;
@@ -948,6 +951,7 @@ node_t *parse_follower(node_t *leader, char *op, int right_binding_power,
 node_t *parse_exp(int min_bind_pow) {
   node_t *node = new_node();
   token_t *tok;
+  type_t *type;
 
   // parse leading operator
   if (consume("-")) {
@@ -996,6 +1000,23 @@ node_t *parse_exp(int min_bind_pow) {
   } else if ((tok = consume_reserved(TK_STRING))) {
     node->kind = NODE_CONST_STRING;
     node->const_str = add_constant_string(tok);
+  } else if ((tok = consume_reserved(TK_SIZEOF))) {
+    expect("(");
+    node->type = new_type_with(TYPE_INT, NULL);
+    node->kind = NODE_NUM;
+    if ((tok = consume_reserved(TK_TYPE_INT))) {
+      node->val = 4;
+    } else if ((tok = consume_reserved(TK_TYPE_CHAR))) {
+      node->val = 1;
+    } else {
+      tok = consume_ident();
+      type = find_type_alias(tok);
+      if (!type) {
+        error("not found type_alias, sizeof");
+      }
+      node->val = calc_size_of_type(type);
+    }
+    expect(")");
   } else {
     tok = consume_ident();
     if (consume("(")) {

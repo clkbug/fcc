@@ -36,6 +36,7 @@ SRCS := \
 	bitwiseop.c \
 	const.c \
 	string_double_quote.c \
+	sizeof.c \
 	# post_increment.c 	\
 
 
