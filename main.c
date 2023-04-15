@@ -60,18 +60,18 @@ token_t *token;
 bool consume(char *op) {
   if (token->kind != TK_RESERVED || strlen(op) != token->len ||
       memcmp(token->str, op, token->len)) {
-    return false;
+    return 0;
   }
   token = token->next;
-  return true;
+  return 1;
 }
 
 bool peek(char *op) {
   if (token->kind != TK_RESERVED || strlen(op) != token->len ||
       memcmp(token->str, op, token->len)) {
-    return false;
+    return 0;
   }
-  return true;
+  return 1;
 }
 
 bool is_int() { return token->kind == TK_INT; }
@@ -733,7 +733,7 @@ struct node_t {
   struct node_t *rhs;
   int val;      // for NODE_NUM
   int offset;   // for NODE_LOCAL_VARIABLE, from fp, or for NODE_STRUCT_MEMBER
-  bool ignore;  // if true, then pop(ignore) the value
+  bool ignore;  // if 1, then pop(ignore) the value
   type_t *type;
 
   // for variable
@@ -1222,7 +1222,7 @@ node_t *parse_stmt() {
     expect("(");
     if (!consume(";")) {
       node->init = parse_exp(0);
-      node->init->ignore = true;
+      node->init->ignore = 1;
       expect(";");
     }
     if (!consume(";")) {
@@ -1231,7 +1231,7 @@ node_t *parse_stmt() {
     }
     if (!consume(")")) {
       node->next = parse_exp(0);
-      node->next->ignore = true;
+      node->next->ignore = 1;
       expect(")");
     }
     node->clause_then = parse_stmt();
@@ -1243,7 +1243,7 @@ node_t *parse_stmt() {
     }
   } else {
     node = parse_exp(0);
-    node->ignore = true;
+    node->ignore = 1;
     expect(";");
   }
   return node;
