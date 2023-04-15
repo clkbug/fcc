@@ -1,6 +1,6 @@
 TARGET := fcc
 TARGET2 := fcc2
-CFLAGS := -Wall -Werror -Wpedantic -g
+CFLAGS := -Wall -Wpedantic -g
 
 SRCS := \
 	main.c \

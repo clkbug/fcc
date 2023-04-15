@@ -1728,33 +1728,28 @@ void gen_lval(node_t *node) {
   if (node->kind == NODE_LOCAL_VARIABLE) {
     // local variable address
     printf("%saddi t0, fp, %d\t\t# local variable: ", indent, node->offset);
-    print_str_len(stdout, node->name->str, node->name->len);
+    printf("%.*s", node->name->len, node->name->str);
     printf("\n");
     gen_push("t0");
   } else if (node->kind == NODE_GLOBAL_VARIABLE) {
     // global variable address
-    printf("%slui t0, %%hi(", indent);
-    print_str_len(stdout, node->name->str, node->name->len);
-    printf(")\n");
-    printf("%saddi t0, t0, %%lo(", indent);
-    print_str_len(stdout, node->name->str, node->name->len);
-    printf(")\n");
+    printf("%slui t0, %%hi(%.*s)\n", indent, node->name->len, node->name->str);
+    printf("%saddi t0, t0, %%lo(%.*s)\n", indent, node->name->len,
+           node->name->str);
     gen_push("t0");
   } else if (node->kind == NODE_DEREF) {
     gen(node->rhs);
   } else if (node->kind == NODE_DOT) {
     gen_lval(node->lhs);
     gen_pop("t0");
-    printf("%saddi t0, t0, %d\t\t# member: ", indent, node->rhs->offset);
-    print_str_len(stdout, node->rhs->name->str, node->rhs->name->len);
-    printf("\n");
+    printf("%saddi t0, t0, %d\t\t# member: %.*s\n", indent, node->rhs->offset,
+           node->rhs->name->len, node->rhs->name->str);
     gen_push("t0");
   } else if (node->kind == NODE_ARROW) {
     gen(node->lhs);
     gen_pop("t0");
-    printf("%saddi t0, t0, %d\t\t# member: ", indent, node->rhs->offset);
-    print_str_len(stdout, node->rhs->name->str, node->rhs->name->len);
-    printf("\n");
+    printf("%saddi t0, t0, %d\t\t# member: %.*s\n", indent, node->rhs->offset,
+           node->rhs->name->len, node->rhs->name->str);
     gen_push("t0");
   } else {
     error("左辺値が左辺値ではない！ kind=%d", node->kind);
@@ -2141,14 +2136,9 @@ void print_func_prologue(declaration_t *dec) {
   size_t i;
   printf("  .text\n");
   printf("  .align 4\n");
-  printf("  .globl    ");
-  print_str_len(stdout, dec->name->str, dec->name->len);
-  printf("\n");
-  printf("  .type	    ");
-  print_str_len(stdout, dec->name->str, dec->name->len);
-  printf(", @function\n");
-  print_str_len(stdout, dec->name->str, dec->name->len);
-  printf(":\n");
+  printf("  .globl    %.*s\n", dec->name->len, dec->name->str);
+  printf("  .type	    %.*s, @function\n", dec->name->len, dec->name->str);
+  printf("%.*s:\n", dec->name->len, dec->name->str);
   gen_push("fp");  // save fp
 
   gen_alloc_stack(local_variables);
@@ -2170,22 +2160,15 @@ void gen_declaration(declaration_t *dec) {
   size_t i;
   depth = 1;
   if (dec->declaration_type == DECLARATION_GLOBAL_VARIABLE) {
-    printf("  .globl  ");
-    print_str_len(stdout, dec->name->str, dec->name->len);
-    printf("\n");
-    printf("  .section  .sdata,\"aw\"\n");
-    printf("  .type     ");
-    print_str_len(stdout, dec->name->str, dec->name->len);
-    printf(", @object\n");
-
-    printf("  .size     ");
-    print_str_len(stdout, dec->name->str, dec->name->len);
-    printf(", %zd\n", calc_size_of_type(dec->type));
+    printf("  .globl  %.*s\n", dec->name->len, dec->name->str);
+    printf("  .section  .sdata, \"aw\"\n");
+    printf("  .type     %.*s, @object\n", dec->name->len, dec->name->str);
+    printf("  .size     %.*s, %zd\n", dec->name->len, dec->name->str,
+           calc_size_of_type(dec->type));
 
     printf("  .balign    8\n");
 
-    print_str_len(stdout, dec->name->str, dec->name->len);
-    printf(":\n");
+    printf("%.*s:\n", dec->name->len, dec->name->str);
     if (dec->constant_string) {
       printf("  .word .L.C%zd", dec->constant_string->id);
     } else if (dec->constant_int) {
@@ -2223,9 +2206,7 @@ void print_constant_strings() {
     printf("  .section .rodata\n");
     printf("  .balign  4\n");
     printf(".L.C%zd:\n", cur->id);
-    printf("  .string ");
-    print_str_len(stdout, cur->tok->str, cur->tok->len);
-    printf("\n");
+    printf("  .string %.*s\n", cur->tok->len, cur->tok->str);
     cur = cur->next;
   }
 }
