@@ -1456,163 +1456,123 @@ void print_node_binop(node_t *node, char *op) {
 }
 
 void print_node(node_t *node) {
-  // if (node->ignore) fprintf(stderr, "[ignore]");
-  // switch (node->kind) {
-  //   case NODE_MINUS:
-  //     fprintf(stderr, "(- ");
-  //     print_node(node->rhs);
-  //     fprintf(stderr, ")");
-  //     break;
-  //   case NODE_ADD:
-  //     print_node_binop(node, "+");
-  //     break;
-  //   case NODE_SUB:
-  //     print_node_binop(node, "-");
-  //     break;
-  //   case NODE_MUL:
-  //     print_node_binop(node, "*");
-  //     break;
-  //   case NODE_DIV:
-  //     print_node_binop(node, "/");
-  //     break;
-  //   case NODE_MOD:
-  //     print_node_binop(node, "%");
-  //     break;
-  //   case NODE_LT:
-  //     print_node_binop(node, "<");
-  //     break;
-  //   case NODE_LE:
-  //     print_node_binop(node, "<=");
-  //     break;
-  //   case NODE_GT:
-  //     print_node_binop(node, ">");
-  //     break;
-  //   case NODE_GE:
-  //     print_node_binop(node, ">=");
-  //     break;
-  //   case NODE_LOGICAL_AND:
-  //     print_node_binop(node, "&&");
-  //     break;
-  //   case NODE_LOGICAL_OR:
-  //     print_node_binop(node, "||");
-  //     break;
-  //   case NODE_EQ:
-  //     print_node_binop(node, "==");
-  //     break;
-  //   case NODE_NEQ:
-  //     print_node_binop(node, "!=");
-  //     break;
-  //   case NODE_BITWISE_AND:
-  //     print_node_binop(node, "&");
-  //     break;
-  //   case NODE_BITWISE_OR:
-  //     print_node_binop(node, "|");
-  //     break;
-  //   case NODE_BITWISE_XOR:
-  //     print_node_binop(node, "^");
-  //     break;
-  //   case NODE_DOT:
-  //     print_node_binop(node, ".");
-  //     break;
-  //   case NODE_ARROW:
-  //     print_node_binop(node, "->");
-  //     break;
-  //   case NODE_NUM:
-  //     fprintf(stderr, "%d", node->val);
-  //     break;
-  //   case NODE_CONST_STRING:
-  //     print_str_len(stderr, node->const_str->tok->str,
-  //                   node->const_str->tok->len);
-  //     break;
-  //   case NODE_LOCAL_VARIABLE:
-  //   case NODE_GLOBAL_VARIABLE:
-  //   case NODE_STRUCT_MEMBER: {
-  //     print_str_len(stderr, node->name->str, node->name->len);
-  //     break;
-  //   }
-  //   case NODE_ASSIGN:
-  //     print_node_binop(node, "=");
-  //     break;
-  //   case NODE_RETURN:
-  //     fprintf(stderr, "return ");
-  //     if (node->rhs) {
-  //       print_node(node->rhs);
-  //     }
-  //     fprintf(stderr, ";");
-  //     break;
-  //   case NODE_BREAK:
-  //     fprintf(stderr, "break;");
-  //     break;
-  //   case NODE_CONTINUE:
-  //     fprintf(stderr, "continue;");
-  //     break;
-  //   case NODE_IF:
-  //     fprintf(stderr, "if (");
-  //     print_node(node->cond);
-  //     fprintf(stderr, ") ");
-  //     print_node(node->clause_then);
-  //     if (node->clause_else) {
-  //       fprintf(stderr, " else ");
-  //       print_node(node->clause_else);
-  //     }
-  //     break;
-  //   case NODE_WHILE:
-  //     fprintf(stderr, "while (");
-  //     print_node(node->cond);
-  //     fprintf(stderr, ") ");
-  //     print_node(node->clause_then);
-  //     break;
-  //   case NODE_FOR:
-  //     fprintf(stderr, "for (");
-  //     if (node->init) print_node(node->init);
-  //     fprintf(stderr, "; ");
-  //     if (node->cond) print_node(node->cond);
-  //     fprintf(stderr, "; ");
-  //     if (node->next) print_node(node->next);
-  //     fprintf(stderr, ") ");
-  //     print_node(node->clause_then);
-  //     break;
-  //   case NODE_BLOCK:
-  //     fprintf(stderr, "{ ");
-  //     for (size_t i = 0; i < node->statement_count; i++) {
-  //       print_node(node->statements[i]);
-  //     }
-  //     fprintf(stderr, "}");
-  //     break;
-  //   case NODE_CALL: {
-  //     print_str_len(stderr, node->name->str, node->name->len);
-  //     fprintf(stderr, "(");
-  //     for (size_t i = 0; i < node->args_count; i++) {
-  //       if (0 < i) {
-  //         fprintf(stderr, ", ");
-  //       }
-  //       print_node(node->args[i]);
-  //     }
-  //     fprintf(stderr, ")");
-  //     break;
-  //   }
-  //   case NODE_ADDR:
-  //     fprintf(stderr, "&");
-  //     print_node(node->rhs);
-  //     break;
-  //   case NODE_DEREF:
-  //     fprintf(stderr, "*");
-  //     print_node(node->rhs);
-  //     break;
-  //   case NODE_LOGICAL_NOT:
-  //     fprintf(stderr, "!");
-  //     print_node(node->rhs);
-  //     break;
-  //   case NODE_VAR_DEC:
-  //     fprintf(stderr, "int ");
-  //     print_str_len(stderr, node->name->str, node->name->len);
-  //     fprintf(stderr, ";\n");
-  //     break;
-  //   default:
-  //     fprintf(stderr, "unimplemented printer: %d\n", node->kind);
-  //     assert(!"unimplemented printer");
-  //     break;
-  // }
+  if (node->ignore) fprintf(stderr, "[ignore]");
+  if (node->kind == NODE_MINUS) {
+    fprintf(stderr, "(- ");
+    print_node(node->rhs);
+    fprintf(stderr, ")");
+  } else if (node->kind == NODE_ADD) {
+    print_node_binop(node, "+");
+  } else if (node->kind == NODE_SUB) {
+    print_node_binop(node, "-");
+  } else if (node->kind == NODE_MUL) {
+    print_node_binop(node, "*");
+  } else if (node->kind == NODE_DIV) {
+    print_node_binop(node, "/");
+  } else if (node->kind == NODE_MOD) {
+    print_node_binop(node, "%");
+  } else if (node->kind == NODE_LT) {
+    print_node_binop(node, "<");
+  } else if (node->kind == NODE_LE) {
+    print_node_binop(node, "<=");
+  } else if (node->kind == NODE_GT) {
+    print_node_binop(node, ">");
+  } else if (node->kind == NODE_GE) {
+    print_node_binop(node, ">=");
+  } else if (node->kind == NODE_LOGICAL_AND) {
+    print_node_binop(node, "&&");
+  } else if (node->kind == NODE_LOGICAL_OR) {
+    print_node_binop(node, "||");
+  } else if (node->kind == NODE_EQ) {
+    print_node_binop(node, "==");
+  } else if (node->kind == NODE_NEQ) {
+    print_node_binop(node, "!=");
+  } else if (node->kind == NODE_BITWISE_AND) {
+    print_node_binop(node, "&");
+  } else if (node->kind == NODE_BITWISE_OR) {
+    print_node_binop(node, "|");
+  } else if (node->kind == NODE_BITWISE_XOR) {
+    print_node_binop(node, "^");
+  } else if (node->kind == NODE_DOT) {
+    print_node_binop(node, ".");
+  } else if (node->kind == NODE_ARROW) {
+    print_node_binop(node, "->");
+  } else if (node->kind == NODE_NUM) {
+    fprintf(stderr, "%d", node->val);
+  } else if (node->kind == NODE_CONST_STRING) {
+    print_str_len(stderr, node->const_str->tok->str, node->const_str->tok->len);
+  } else if (node->kind == NODE_LOCAL_VARIABLE ||
+             node->kind == NODE_GLOBAL_VARIABLE ||
+             node->kind == NODE_STRUCT_MEMBER) {
+    print_str_len(stderr, node->name->str, node->name->len);
+  } else if (node->kind == NODE_ASSIGN) {
+    print_node_binop(node, "=");
+  } else if (node->kind == NODE_RETURN) {
+    fprintf(stderr, "return ");
+    if (node->rhs) {
+      print_node(node->rhs);
+    }
+    fprintf(stderr, ";");
+  } else if (node->kind == NODE_BREAK) {
+    fprintf(stderr, "break;");
+  } else if (node->kind == NODE_CONTINUE) {
+    fprintf(stderr, "continue;");
+  } else if (node->kind == NODE_IF) {
+    fprintf(stderr, "if (");
+    print_node(node->cond);
+    fprintf(stderr, ") ");
+    print_node(node->clause_then);
+    if (node->clause_else) {
+      fprintf(stderr, " else ");
+      print_node(node->clause_else);
+    }
+  } else if (node->kind == NODE_WHILE) {
+    fprintf(stderr, "while (");
+    print_node(node->cond);
+    fprintf(stderr, ") ");
+    print_node(node->clause_then);
+  } else if (node->kind == NODE_FOR) {
+    fprintf(stderr, "for (");
+    if (node->init) print_node(node->init);
+    fprintf(stderr, "; ");
+    if (node->cond) print_node(node->cond);
+    fprintf(stderr, "; ");
+    if (node->next) print_node(node->next);
+    fprintf(stderr, ") ");
+    print_node(node->clause_then);
+  } else if (node->kind == NODE_BLOCK) {
+    fprintf(stderr, "{ ");
+    for (size_t i = 0; i < node->statement_count; i++) {
+      print_node(node->statements[i]);
+    }
+    fprintf(stderr, "}");
+  } else if (node->kind == NODE_CALL) {
+    print_str_len(stderr, node->name->str, node->name->len);
+    fprintf(stderr, "(");
+    for (size_t i = 0; i < node->args_count; i++) {
+      if (0 < i) {
+        fprintf(stderr, ", ");
+      }
+      print_node(node->args[i]);
+    }
+    fprintf(stderr, ")");
+  } else if (node->kind == NODE_ADDR) {
+    fprintf(stderr, "&");
+    print_node(node->rhs);
+  } else if (node->kind == NODE_DEREF) {
+    fprintf(stderr, "*");
+    print_node(node->rhs);
+  } else if (node->kind == NODE_LOGICAL_NOT) {
+    fprintf(stderr, "!");
+    print_node(node->rhs);
+  } else if (node->kind == NODE_VAR_DEC) {
+    fprintf(stderr, "int ");
+    print_str_len(stderr, node->name->str, node->name->len);
+    fprintf(stderr, ";\n");
+  } else {
+    fprintf(stderr, "unimplemented printer: %d\n", node->kind);
+    assert(!"unimplemented printer");
+  }
 }
 
 void print_declaration(declaration_t *dec) {
