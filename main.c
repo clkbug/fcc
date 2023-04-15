@@ -45,13 +45,15 @@ const token_kind_t TK_TYPEDEF = 15;
 const token_kind_t TK_STRUCT = 16;
 const token_kind_t TK_EOF = 17;
 
-typedef struct token_t {
+struct token_t {
   token_kind_t kind;
   struct token_t *next;
   char *str;
   size_t len;  // TK_RESERVED length
   int num;
-} token_t;
+};
+
+typedef struct token_t token_t;
 
 token_t *token;
 
@@ -345,14 +347,15 @@ type_kind_t TYPE_STRUCT = 7;
 #define MAX_ARGS 8
 #define MAX_STRUCT_MEMBERS 8
 
-typedef struct type_struct_t {
+struct type_struct_t {
   token_t *name;
   size_t member_count;
   token_t *member_names[MAX_STRUCT_MEMBERS];
   struct type_t *member_types[MAX_STRUCT_MEMBERS];
   size_t member_offsets[MAX_STRUCT_MEMBERS];
   struct type_struct_t *next;
-} type_struct_t;
+};
+typedef struct type_struct_t type_struct_t;
 
 type_struct_t *type_struct = NULL;
 
@@ -387,7 +390,7 @@ size_t get_member_index(type_struct_t *s, token_t *name) {
   return 0;
 }
 
-typedef struct type_t {
+struct type_t {
   type_kind_t ty;
   struct type_t *ptr_to;
   int n;  // for TYPE_ARRAY and TYPE_FUNCTION(# of parameters)
@@ -402,7 +405,8 @@ typedef struct type_t {
   type_struct_t *struct_type;
 
   token_t *name;  // for TEMPORAL TYPE
-} type_t;
+};
+typedef struct type_t type_t;
 
 type_t *new_type() { return calloc(1, sizeof(type_t)); }
 
@@ -461,11 +465,12 @@ size_t calc_size_of_type(type_t *t) {
   error("calc_size_of_type: invalid data type: %d", t->ty);
   return 0;
 }
-typedef struct type_alias_t {
+struct type_alias_t {
   token_t *name;
   struct type_t *type;
   struct type_alias_t *next;
-} type_alias_t;
+};
+typedef struct type_alias_t type_alias_t;
 
 type_alias_t *type_alias = NULL;
 
@@ -489,10 +494,12 @@ type_t *find_type_alias(token_t *name) {
   return NULL;
 }
 
-typedef struct type_and_name_t {
+struct type_and_name_t {
   type_t *t;
   token_t *name;
-} type_and_name_t;
+};
+
+typedef struct type_and_name_t type_and_name_t;
 
 type_and_name_t *parse_type_and_name() {
   type_and_name_t *a = NULL;
@@ -655,11 +662,12 @@ type_and_name_t *parse_type_and_name() {
   return a;
 }
 
-typedef struct constant_string_t {
+struct constant_string_t {
   struct constant_string_t *next;
   token_t *tok;
   size_t id;
-} constant_string_t;
+};
+typedef struct constant_string_t constant_string_t;
 
 constant_string_t *constant_string;
 size_t constant_string_count = 1;
@@ -718,7 +726,7 @@ const node_kind_t NODE_ARROW = 38;
 // NODE_INDEX, // a[i] -> *(a + i)
 
 #define MAX_STATEMENTS 1024
-typedef struct node_t {
+struct node_t {
   node_kind_t kind;
   struct node_t *lhs;
   struct node_t *rhs;
@@ -751,16 +759,18 @@ typedef struct node_t {
 
   // for 'const string'
   constant_string_t *const_str;
-} node_t;
+};
+typedef struct node_t node_t;
 
-typedef struct local_variable_t {
+struct local_variable_t {
   struct local_variable_t *next;
   token_t *name;
   size_t size;
   size_t size_on_stack;  // aligned size
   int offset;            // from fp
   type_t *type;
-} local_variable_t;
+};
+typedef struct local_variable_t local_variable_t;
 
 local_variable_t *local_variables = NULL;
 
@@ -794,14 +804,15 @@ void add_local_variable(token_t *name, type_t *ty) {
   local_variables = lvar;
 }
 
-typedef struct global_variable_t {
+struct global_variable_t {
   struct global_variable_t *next;
   token_t *name;
   size_t size;
   type_t *type;
 
   constant_string_t *constant_string;  // for string
-} global_variable_t;
+};
+typedef struct global_variable_t global_variable_t;
 
 // global variable
 global_variable_t *global_variables = NULL;
@@ -845,7 +856,7 @@ const declaration_type_t DECLARATION_GLOBAL_VARIABLE = 2;
 const declaration_type_t DECLARATION_TYPEDEF = 3;
 // DECLARATION_STRUCT,
 
-typedef struct declaration_t {
+struct declaration_t {
   declaration_type_t declaration_type;
   token_t *name;
   type_t *type;
@@ -858,7 +869,8 @@ typedef struct declaration_t {
 
   constant_string_t *constant_string;
   int constant_int;
-} declaration_t;
+};
+typedef struct declaration_t declaration_t;
 
 declaration_t *new_declaration() {
   declaration_t *d = calloc(1, sizeof(declaration_t));
