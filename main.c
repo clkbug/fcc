@@ -176,6 +176,15 @@ token_t *tokenize(char *p) {
       continue;
     }
 
+    if (strncmp(p, "/*", 2) == 0) {
+      char *q = strstr(p + 2, "*/");
+      if (!q) {
+        error("unclosed comment");
+      }
+      p = q + 2;
+      continue;
+    }
+
     // skip preprocessor
     if (*p == '#') {
       p += 1;
@@ -184,13 +193,8 @@ token_t *tokenize(char *p) {
       }
       continue;
     }
-
-    if (strncmp(p, "/*", 2) == 0) {
-      char *q = strstr(p + 2, "*/");
-      if (!q) {
-        error("unclosed comment");
-      }
-      p = q + 2;
+    if (6 <= strlen(p) && strncmp(p, "const", 5) == 0 && isspace(p[5])) {
+      p = p + 5;
       continue;
     }
 
@@ -845,6 +849,7 @@ typedef struct declaration_t {
   size_t func_statement_count;
 
   constant_string_t *constant_string;
+  int constant_int;
 } declaration_t;
 
 declaration_t *new_declaration() {
@@ -1333,9 +1338,8 @@ void add_type(node_t *node) {
       }
       add_type(node->rhs);
     }
-  }
-  // var declaration does not have type
-  else {
+    // var declaration does not have type
+  } else {
     error("in add_type, unknown node kind: %d", node->kind);
   }
 }
@@ -1373,12 +1377,13 @@ declaration_t *parse_declaration() {
     d->declaration_type = DECLARATION_GLOBAL_VARIABLE;
     d->type = type_and_name->t;
     d->name = type_and_name->name;
-    tok = consume_reserved(TK_STRING);
-    if (!tok) {
-      error("not supported yet");
+    if ((tok = consume_reserved(TK_STRING))) {
+      d->constant_string = add_global_variable_with_constant_string(
+          type_and_name->name, type_and_name->t, tok);
+    } else if ((tok = consume_reserved(TK_INT))) {
+      d->constant_int = tok->num;
+      add_global_variable(d->name, d->type);
     }
-    d->constant_string = add_global_variable_with_constant_string(
-        type_and_name->name, type_and_name->t, tok);
     expect(";");
     return d;
   }
@@ -2094,6 +2099,9 @@ void gen_declaration(declaration_t *dec) {
     printf(":\n");
     if (dec->constant_string) {
       printf("  .word .L.C%zd", dec->constant_string->id);
+    } else if (dec->constant_int) {
+      assert(calc_size_of_type(dec->type) == 4);
+      printf("  .word %d\n", dec->constant_int);
     } else {
       printf("  .zero %zd\n", calc_size_of_type(dec->type));
     }

@@ -34,6 +34,7 @@ SRCS := \
 	string_null.c \
 	calculator_stack.c \
 	bitwiseop.c \
+	const.c \
 	# post_increment.c 	\
 
 
