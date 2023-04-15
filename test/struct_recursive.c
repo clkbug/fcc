@@ -37,6 +37,7 @@ void test1() {
   c.val = 3;
   putchar('0' + a.next->val);
   putchar('0' + b.next->val);
+  putchar('0' + a.next->next->val);
   putchar('\n');
   return;
 }
