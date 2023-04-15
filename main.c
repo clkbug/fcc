@@ -803,7 +803,8 @@ typedef struct local_variable_t local_variable_t;
 local_variable_t *local_variables = NULL;
 
 local_variable_t *find_local_variable(token_t *name) {
-  for (local_variable_t *var = local_variables; var; var = var->next) {
+  local_variable_t *var;
+  for (var = local_variables; var; var = var->next) {
     if (var->name->len == name->len &&
         !memcmp(name->str, var->name->str, var->name->len)) {
       return var;
@@ -846,7 +847,8 @@ typedef struct global_variable_t global_variable_t;
 global_variable_t *global_variables = NULL;
 
 global_variable_t *find_global_variable(token_t *tok) {
-  for (global_variable_t *var = global_variables; var; var = var->next) {
+  global_variable_t *var;
+  for (var = global_variables; var; var = var->next) {
     if (var->name->len == tok->len &&
         !memcmp(tok->str, var->name->str, var->name->len)) {
       return var;
@@ -905,7 +907,7 @@ declaration_t *new_declaration() {
   return d;
 }
 
-node_t *new_node() { return (node_t *)calloc(1, sizeof(node_t)); }
+node_t *new_node() { return calloc(1, sizeof(node_t)); }
 
 node_t *parse_int() {
   node_t *node = new_node();
@@ -978,6 +980,8 @@ node_t *parse_exp(int min_bind_pow) {
   type_t *type;
   type_struct_t *struc;
   size_t i;
+  local_variable_t *lvar;
+  global_variable_t *gvar;
 
   // parse leading operator
   if (consume("-")) {
@@ -1067,8 +1071,8 @@ node_t *parse_exp(int min_bind_pow) {
       }
     } else {
       // variable
-      local_variable_t *lvar = find_local_variable(tok);
-      global_variable_t *gvar = find_global_variable(tok);
+      lvar = find_local_variable(tok);
+      gvar = find_global_variable(tok);
       if (lvar) {
         node->kind = NODE_LOCAL_VARIABLE;
         node->offset = lvar->offset;
@@ -1225,6 +1229,7 @@ node_t *parse_stmt() {
   size_t i;
   node_t *node = new_node();
   type_and_name_t *type_and_name = parse_type_and_name();
+  local_variable_t *lvar;
 
   if (type_and_name) {
     node->kind = NODE_VAR_DEC;
@@ -1232,7 +1237,7 @@ node_t *parse_stmt() {
 
     add_local_variable(node->name, type_and_name->t);
     if (consume("=")) {
-      local_variable_t *lvar = find_local_variable(node->name);
+      lvar = find_local_variable(node->name);
       node->lhs = new_node();
       node->lhs->kind = NODE_LOCAL_VARIABLE;
       node->lhs->name = lvar->name;
@@ -2137,6 +2142,7 @@ void gen(node_t *node) {
 
 void print_func_prologue(declaration_t *dec) {
   size_t i;
+  char reg[3];
   printf("  .text\n");
   printf("  .align 4\n");
   printf("  .globl    %.*s\n", dec->name->len, dec->name->str);
@@ -2149,7 +2155,9 @@ void print_func_prologue(declaration_t *dec) {
 
   // push arguments
   for (i = 0; i < dec->func_arg_count; ++i) {
-    char reg[] = "a0";
+    reg[0] = 'a';
+    reg[1] = '0';
+    reg[2] = '\0';
     local_variable_t *var = find_local_variable(dec->func_arg[i]);
     reg[1] = reg[1] + i;
     eprintf("push arg %s\n", reg);
