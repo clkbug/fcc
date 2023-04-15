@@ -39,6 +39,7 @@ SRCS := \
 	sizeof.c \
 	struct_recursive_inc.c \
 	binary_tree.c \
+	call_printf.c \
 	# post_increment.c 	\
 
 
