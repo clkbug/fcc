@@ -178,7 +178,7 @@ token_t *tokenize(char *p) {
     }
 
     if (strncmp(p, "//", 2) == 0) {
-      p += 2;
+      p = p + 2;
       while (*p != '\n') {
         ++p;
       }
@@ -196,7 +196,7 @@ token_t *tokenize(char *p) {
 
     // skip preprocessor
     if (*p == '#') {
-      p += 1;
+      p = p + 1;
       while (*p != '\n') {
         ++p;
       }
@@ -214,7 +214,7 @@ token_t *tokenize(char *p) {
           memcmp(p, "->", 2) == 0 || memcmp(p, "||", 2) == 0 ||
           memcmp(p, "&&", 2) == 0) {
         cur = new_token(TK_RESERVED, cur, p, 2);
-        p += 2;
+        p = p + 2;
         continue;
       }
     }
@@ -234,7 +234,7 @@ token_t *tokenize(char *p) {
         n++;
       }
       cur = new_token(TK_IDENT, cur, p, n);
-      p += n;
+      p = p + n;
 
       if (compare_token(cur, "return", 6)) {
         cur->kind = TK_RETURN;
@@ -564,10 +564,12 @@ type_and_name_t *parse_type_and_name() {
 
           a->t->struct_type->member_offsets[a->t->struct_type->member_count] =
               offset;
-          offset += calc_size_of_type(
-              a->t->struct_type->member_types[a->t->struct_type->member_count]);
+          offset =
+              offset + calc_size_of_type(
+                           a->t->struct_type
+                               ->member_types[a->t->struct_type->member_count]);
           if (offset % 4 != 0) {
-            offset += 4 - (offset % 4);
+            offset = offset + 4 - (offset % 4);
           }
           a->t->struct_type->member_count++;
         }
@@ -791,7 +793,7 @@ local_variable_t *find_local_variable(token_t *name) {
 size_t calc_total_local_variable_size_on_stack(local_variable_t *var) {
   size_t size = 0;
   while (var) {
-    size += var->size_on_stack;
+    size = size + var->size_on_stack;
     var = var->next;
   }
   return size;
@@ -1664,7 +1666,7 @@ char indent[1024];
 int depth;
 
 void update_indent() {
-  for (int i = 0; i < 4 * depth; i += 4) {
+  for (int i = 0; i < 4 * depth; i = i + 4) {
     indent[i] = indent[i + 1] = indent[i + 2] = indent[i + 3] = ' ';
   }
   indent[4 * depth] = '\0';
@@ -2123,7 +2125,7 @@ void print_func_prologue(declaration_t *dec) {
   for (size_t i = 0; i < dec->func_arg_count; ++i) {
     char reg[] = "a0";
     local_variable_t *var = find_local_variable(dec->func_arg[i]);
-    reg[1] += i;
+    reg[1] = reg[1] + i;
     fprintf(stderr, "push arg %s\n", reg);
     printf("%ssw %s, %d(fp)\n", indent, reg, var->offset);
   }
