@@ -1,4 +1,5 @@
 TARGET := fcc
+TARGET2 := fcc2
 CFLAGS := -Wall -Werror -Wpedantic -g
 
 SRCS := \
@@ -6,8 +7,17 @@ SRCS := \
 
 OBJS := $(SRCS:.c=.o)
 
+.PHONY: all
+all: $(TARGET) $(TARGET2)
+
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
+
+$(TARGET2): $(SRCS) $(TARGET)
+	./preprocess.py $< >/tmp/$<
+	./$(TARGET) /tmp/$< >/tmp/a.s
+	$(CC) $(CFLAGS) -I. -o $@ /tmp/a.s
+
 
 .PHONY: test clean debug
 test: $(TARGET)
