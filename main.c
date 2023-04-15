@@ -400,41 +400,32 @@ type_t *new_type_with(type_kind_t tk, type_t *ptr) {
 }
 
 void print_type(type_t *t) {
-  // switch (t->ty) {
-  //   case TYPE_VOID:
-  //     fprintf(stderr, "void");
-  //     break;
-  //   case TYPE_INT:
-  //     fprintf(stderr, "int");
-  //     break;
-  //   case TYPE_CHAR:
-  //     fprintf(stderr, "char");
-  //     break;
-  //   case TYPE_POINTER:
-  //     fprintf(stderr, "*");
-  //     print_type(t->ptr_to);
-  //     break;
-  //   case TYPE_ARRAY:
-  //     fprintf(stderr, "[%d]", t->n);
-  //     print_type(t->ptr_to);
-  //     break;
-  //   case TYPE_INVALID:
-  //     error("tried to print TYPE_INVALID!");
-  //     break;
-  //   case TYPE_FUNCTION:
-  //     for (int i = 0; i < t->n; i++) {
-  //       if (0 < i) {
-  //         fprintf(stderr, "->");
-  //       }
-  //       print_type(t->args[i]);
-  //     }
-  //     fprintf(stderr, "->");
-  //     print_type(t->ret);
-  //     break;
-  //   default:
-  //     error("tried to print %d!", t->ty);
-  //     break;
-  // }
+  if (t->ty == TYPE_VOID) {
+    fprintf(stderr, "void");
+  } else if (t->ty == TYPE_INT) {
+    fprintf(stderr, "int");
+  } else if (t->ty == TYPE_CHAR) {
+    fprintf(stderr, "char");
+  } else if (t->ty == TYPE_POINTER) {
+    fprintf(stderr, "*");
+    print_type(t->ptr_to);
+  } else if (t->ty == TYPE_ARRAY) {
+    fprintf(stderr, "[%d]", t->n);
+    print_type(t->ptr_to);
+  } else if (t->ty == TYPE_FUNCTION) {
+    for (int i = 0; i < t->n; i++) {
+      if (0 < i) {
+        fprintf(stderr, "->");
+      }
+      print_type(t->args[i]);
+    }
+    fprintf(stderr, "->");
+    print_type(t->ret);
+  } else if (t->ty == TYPE_INVALID) {
+    error("tried to print TYPE_INVALID!");
+  } else {
+    error("tried to print %d!", t->ty);
+  }
 }
 
 size_t calc_size_of_type(type_t *t) {
