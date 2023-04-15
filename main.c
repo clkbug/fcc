@@ -1304,6 +1304,11 @@ void add_type(node_t *node) {
   } else if (node->kind == NODE_DOT) {
     add_type(node->lhs);
     assert(node->lhs->type->ty == TYPE_STRUCT);
+
+    if (node->lhs->type->struct_type->member_count == 0) {
+      node->lhs->type->struct_type = find_type_struct(node->lhs->type->name);
+    }
+    assert(node->lhs->type->struct_type->member_count > 0);
     // assert(node->rhs->kind == NODE_STRUCT_MEMBER);
     i = get_member_index(node->lhs->type->struct_type, node->rhs->name);
     node->rhs->kind = NODE_STRUCT_MEMBER;
@@ -1314,6 +1319,12 @@ void add_type(node_t *node) {
     add_type(node->lhs);
     assert(node->lhs->type->ty == TYPE_POINTER);
     assert(node->lhs->type->ptr_to->ty == TYPE_STRUCT);
+
+    if (node->lhs->type->ptr_to->struct_type->member_count == 0) {
+      node->lhs->type->ptr_to->struct_type =
+          find_type_struct(node->lhs->type->ptr_to->name);
+    }
+    assert(node->lhs->type->ptr_to->struct_type->member_count > 0);
     // assert(node->rhs->kind == NODE_STRUCT_MEMBER);
     i = get_member_index(node->lhs->type->ptr_to->struct_type, node->rhs->name);
     node->rhs->kind = NODE_STRUCT_MEMBER;
