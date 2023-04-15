@@ -266,6 +266,9 @@ token_t *tokenize(char *p) {
         cur->kind = TK_STRUCT;
       } else if (compare_token(cur, "sizeof", 6)) {
         cur->kind = TK_SIZEOF;
+      } else if (compare_token(cur, "NULL", 4)) {
+        cur->kind = TK_INT;
+        cur->num = 0;
       }
 
       continue;
