@@ -1474,163 +1474,163 @@ void print_node_binop(node_t *node, char *op) {
 }
 
 void print_node(node_t *node) {
-  if (node->ignore) fprintf(stderr, "[ignore]");
-  switch (node->kind) {
-    case NODE_MINUS:
-      fprintf(stderr, "(- ");
-      print_node(node->rhs);
-      fprintf(stderr, ")");
-      break;
-    case NODE_ADD:
-      print_node_binop(node, "+");
-      break;
-    case NODE_SUB:
-      print_node_binop(node, "-");
-      break;
-    case NODE_MUL:
-      print_node_binop(node, "*");
-      break;
-    case NODE_DIV:
-      print_node_binop(node, "/");
-      break;
-    case NODE_MOD:
-      print_node_binop(node, "%");
-      break;
-    case NODE_LT:
-      print_node_binop(node, "<");
-      break;
-    case NODE_LE:
-      print_node_binop(node, "<=");
-      break;
-    case NODE_GT:
-      print_node_binop(node, ">");
-      break;
-    case NODE_GE:
-      print_node_binop(node, ">=");
-      break;
-    case NODE_LOGICAL_AND:
-      print_node_binop(node, "&&");
-      break;
-    case NODE_LOGICAL_OR:
-      print_node_binop(node, "||");
-      break;
-    case NODE_EQ:
-      print_node_binop(node, "==");
-      break;
-    case NODE_NEQ:
-      print_node_binop(node, "!=");
-      break;
-    case NODE_BITWISE_AND:
-      print_node_binop(node, "&");
-      break;
-    case NODE_BITWISE_OR:
-      print_node_binop(node, "|");
-      break;
-    case NODE_BITWISE_XOR:
-      print_node_binop(node, "^");
-      break;
-    case NODE_DOT:
-      print_node_binop(node, ".");
-      break;
-    case NODE_ARROW:
-      print_node_binop(node, "->");
-      break;
-    case NODE_NUM:
-      fprintf(stderr, "%d", node->val);
-      break;
-    case NODE_CONST_STRING:
-      print_str_len(stderr, node->const_str->tok->str,
-                    node->const_str->tok->len);
-      break;
-    case NODE_LOCAL_VARIABLE:
-    case NODE_GLOBAL_VARIABLE:
-    case NODE_STRUCT_MEMBER: {
-      print_str_len(stderr, node->name->str, node->name->len);
-      break;
-    }
-    case NODE_ASSIGN:
-      print_node_binop(node, "=");
-      break;
-    case NODE_RETURN:
-      fprintf(stderr, "return ");
-      if (node->rhs) {
-        print_node(node->rhs);
-      }
-      fprintf(stderr, ";");
-      break;
-    case NODE_BREAK:
-      fprintf(stderr, "break;");
-      break;
-    case NODE_CONTINUE:
-      fprintf(stderr, "continue;");
-      break;
-    case NODE_IF:
-      fprintf(stderr, "if (");
-      print_node(node->cond);
-      fprintf(stderr, ") ");
-      print_node(node->clause_then);
-      if (node->clause_else) {
-        fprintf(stderr, " else ");
-        print_node(node->clause_else);
-      }
-      break;
-    case NODE_WHILE:
-      fprintf(stderr, "while (");
-      print_node(node->cond);
-      fprintf(stderr, ") ");
-      print_node(node->clause_then);
-      break;
-    case NODE_FOR:
-      fprintf(stderr, "for (");
-      if (node->init) print_node(node->init);
-      fprintf(stderr, "; ");
-      if (node->cond) print_node(node->cond);
-      fprintf(stderr, "; ");
-      if (node->next) print_node(node->next);
-      fprintf(stderr, ") ");
-      print_node(node->clause_then);
-      break;
-    case NODE_BLOCK:
-      fprintf(stderr, "{ ");
-      for (size_t i = 0; i < node->statement_count; i++) {
-        print_node(node->statements[i]);
-      }
-      fprintf(stderr, "}");
-      break;
-    case NODE_CALL: {
-      print_str_len(stderr, node->name->str, node->name->len);
-      fprintf(stderr, "(");
-      for (size_t i = 0; i < node->args_count; i++) {
-        if (0 < i) {
-          fprintf(stderr, ", ");
-        }
-        print_node(node->args[i]);
-      }
-      fprintf(stderr, ")");
-      break;
-    }
-    case NODE_ADDR:
-      fprintf(stderr, "&");
-      print_node(node->rhs);
-      break;
-    case NODE_DEREF:
-      fprintf(stderr, "*");
-      print_node(node->rhs);
-      break;
-    case NODE_LOGICAL_NOT:
-      fprintf(stderr, "!");
-      print_node(node->rhs);
-      break;
-    case NODE_VAR_DEC:
-      fprintf(stderr, "int ");
-      print_str_len(stderr, node->name->str, node->name->len);
-      fprintf(stderr, ";\n");
-      break;
-    default:
-      fprintf(stderr, "unimplemented printer: %d\n", node->kind);
-      assert(!"unimplemented printer");
-      break;
-  }
+  // if (node->ignore) fprintf(stderr, "[ignore]");
+  // switch (node->kind) {
+  //   case NODE_MINUS:
+  //     fprintf(stderr, "(- ");
+  //     print_node(node->rhs);
+  //     fprintf(stderr, ")");
+  //     break;
+  //   case NODE_ADD:
+  //     print_node_binop(node, "+");
+  //     break;
+  //   case NODE_SUB:
+  //     print_node_binop(node, "-");
+  //     break;
+  //   case NODE_MUL:
+  //     print_node_binop(node, "*");
+  //     break;
+  //   case NODE_DIV:
+  //     print_node_binop(node, "/");
+  //     break;
+  //   case NODE_MOD:
+  //     print_node_binop(node, "%");
+  //     break;
+  //   case NODE_LT:
+  //     print_node_binop(node, "<");
+  //     break;
+  //   case NODE_LE:
+  //     print_node_binop(node, "<=");
+  //     break;
+  //   case NODE_GT:
+  //     print_node_binop(node, ">");
+  //     break;
+  //   case NODE_GE:
+  //     print_node_binop(node, ">=");
+  //     break;
+  //   case NODE_LOGICAL_AND:
+  //     print_node_binop(node, "&&");
+  //     break;
+  //   case NODE_LOGICAL_OR:
+  //     print_node_binop(node, "||");
+  //     break;
+  //   case NODE_EQ:
+  //     print_node_binop(node, "==");
+  //     break;
+  //   case NODE_NEQ:
+  //     print_node_binop(node, "!=");
+  //     break;
+  //   case NODE_BITWISE_AND:
+  //     print_node_binop(node, "&");
+  //     break;
+  //   case NODE_BITWISE_OR:
+  //     print_node_binop(node, "|");
+  //     break;
+  //   case NODE_BITWISE_XOR:
+  //     print_node_binop(node, "^");
+  //     break;
+  //   case NODE_DOT:
+  //     print_node_binop(node, ".");
+  //     break;
+  //   case NODE_ARROW:
+  //     print_node_binop(node, "->");
+  //     break;
+  //   case NODE_NUM:
+  //     fprintf(stderr, "%d", node->val);
+  //     break;
+  //   case NODE_CONST_STRING:
+  //     print_str_len(stderr, node->const_str->tok->str,
+  //                   node->const_str->tok->len);
+  //     break;
+  //   case NODE_LOCAL_VARIABLE:
+  //   case NODE_GLOBAL_VARIABLE:
+  //   case NODE_STRUCT_MEMBER: {
+  //     print_str_len(stderr, node->name->str, node->name->len);
+  //     break;
+  //   }
+  //   case NODE_ASSIGN:
+  //     print_node_binop(node, "=");
+  //     break;
+  //   case NODE_RETURN:
+  //     fprintf(stderr, "return ");
+  //     if (node->rhs) {
+  //       print_node(node->rhs);
+  //     }
+  //     fprintf(stderr, ";");
+  //     break;
+  //   case NODE_BREAK:
+  //     fprintf(stderr, "break;");
+  //     break;
+  //   case NODE_CONTINUE:
+  //     fprintf(stderr, "continue;");
+  //     break;
+  //   case NODE_IF:
+  //     fprintf(stderr, "if (");
+  //     print_node(node->cond);
+  //     fprintf(stderr, ") ");
+  //     print_node(node->clause_then);
+  //     if (node->clause_else) {
+  //       fprintf(stderr, " else ");
+  //       print_node(node->clause_else);
+  //     }
+  //     break;
+  //   case NODE_WHILE:
+  //     fprintf(stderr, "while (");
+  //     print_node(node->cond);
+  //     fprintf(stderr, ") ");
+  //     print_node(node->clause_then);
+  //     break;
+  //   case NODE_FOR:
+  //     fprintf(stderr, "for (");
+  //     if (node->init) print_node(node->init);
+  //     fprintf(stderr, "; ");
+  //     if (node->cond) print_node(node->cond);
+  //     fprintf(stderr, "; ");
+  //     if (node->next) print_node(node->next);
+  //     fprintf(stderr, ") ");
+  //     print_node(node->clause_then);
+  //     break;
+  //   case NODE_BLOCK:
+  //     fprintf(stderr, "{ ");
+  //     for (size_t i = 0; i < node->statement_count; i++) {
+  //       print_node(node->statements[i]);
+  //     }
+  //     fprintf(stderr, "}");
+  //     break;
+  //   case NODE_CALL: {
+  //     print_str_len(stderr, node->name->str, node->name->len);
+  //     fprintf(stderr, "(");
+  //     for (size_t i = 0; i < node->args_count; i++) {
+  //       if (0 < i) {
+  //         fprintf(stderr, ", ");
+  //       }
+  //       print_node(node->args[i]);
+  //     }
+  //     fprintf(stderr, ")");
+  //     break;
+  //   }
+  //   case NODE_ADDR:
+  //     fprintf(stderr, "&");
+  //     print_node(node->rhs);
+  //     break;
+  //   case NODE_DEREF:
+  //     fprintf(stderr, "*");
+  //     print_node(node->rhs);
+  //     break;
+  //   case NODE_LOGICAL_NOT:
+  //     fprintf(stderr, "!");
+  //     print_node(node->rhs);
+  //     break;
+  //   case NODE_VAR_DEC:
+  //     fprintf(stderr, "int ");
+  //     print_str_len(stderr, node->name->str, node->name->len);
+  //     fprintf(stderr, ";\n");
+  //     break;
+  //   default:
+  //     fprintf(stderr, "unimplemented printer: %d\n", node->kind);
+  //     assert(!"unimplemented printer");
+  //     break;
+  // }
 }
 
 void print_declaration(declaration_t *dec) {
@@ -1743,248 +1743,237 @@ void gen(node_t *node) {
   print_node(node);
   fprintf(stderr, "\n");
 
-  switch (node->kind) {
-    case NODE_NUM:
-      printf("%sli t0, %d\n", indent, node->val);
-      gen_push("t0");
-      break;
-    case NODE_CONST_STRING:
-      printf("%slui t0, %%hi(.L.C%zd)\n", indent, node->const_str->id);
-      printf("%saddi t0, t0, %%lo(.L.C%zd)\n", indent, node->const_str->id);
-      gen_push("t0");
-      break;
-    case NODE_MINUS:
-      gen(node->rhs);
-      gen_pop("t0");
-      printf("%ssub t0, zero, t0\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_ADD:
-      gen(node->lhs);
-      gen(node->rhs);
-      gen_pop("t0");  // rhs
-      gen_pop("t1");  // lhs
-      if (node->lhs->type->ty == TYPE_POINTER ||
-          node->lhs->type->ty == TYPE_ARRAY) {
-        printf("%sli t2, %zd\n", indent,
-               calc_size_of_type(node->lhs->type->ptr_to));
-        printf("%smul t0, t0, t2\n", indent);
-      } else if (node->rhs->type->ty == TYPE_POINTER ||
-                 node->rhs->type->ty == TYPE_ARRAY) {
-        printf("%sli t2, %zd\n", indent,
-               calc_size_of_type(node->lhs->type->ptr_to));
-        printf("%smul t1, t1, t2\n", indent);
-      }
-      printf("%sadd t0, t1, t0\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_SUB:
-      gen(node->lhs);
-      gen(node->rhs);
-      gen_pop("t0");
-      gen_pop("t1");
-      if (node->lhs->type->ty == TYPE_POINTER ||
-          node->lhs->type->ty == TYPE_ARRAY) {
-        printf("%sslli t0, t0, 2\n", indent);  // rhs * 4
-      } else if (node->rhs->type->ty == TYPE_POINTER ||
-                 node->rhs->type->ty == TYPE_ARRAY) {
-        printf("%sslli t1, t1, 2\n", indent);  // lhs * 4
-      }
-      printf("%ssub t0, t1, t0\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_MUL:
-      gen(node->lhs);
-      gen(node->rhs);
-      gen_pop("t0");
-      gen_pop("t1");
-      printf("%smul t0, t1, t0\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_DIV:
-      gen(node->lhs);
-      gen(node->rhs);
-      gen_pop("t0");
-      gen_pop("t1");
-      printf("%sdiv t0, t1, t0\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_MOD:
-      gen(node->lhs);
-      gen(node->rhs);
-      gen_pop("t0");
-      gen_pop("t1");
-      printf("%srem t0, t1, t0\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_LT:
-      gen(node->lhs);
-      gen(node->rhs);
-      gen_pop("t0");
-      gen_pop("t1");
-      printf("%sslt t0, t1, t0\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_LE:
-      gen(node->lhs);
-      gen(node->rhs);
-      gen_pop("t0");
-      gen_pop("t1");
-      printf("%sslt t2, t1, t0\n", indent);  // t2 <- t1 < t0
-      printf("%ssub t3, t0, t1\n", indent);  // t3 <- t0 - t1
-      printf("%ssnez t3, t3\n",
-             indent);  // t3 <- t3 != 0 : a == b -> 0, a != b -> 1
-      printf("%sneg  t3, t3\n", indent);     // t3 <- a == b -> 0, a != b -> -1
-      printf("%saddi t3, t3, 1\n", indent);  // t3 <- a == b -> 1, a != b -> 0
-      printf("%sor   t0, t2, t3\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_GT:
-      gen(node->lhs);
-      gen(node->rhs);
-      gen_pop("t0");
-      gen_pop("t1");
-      printf("%ssgt t0, t1, t0\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_GE:
-      gen(node->lhs);
-      gen(node->rhs);
-      gen_pop("t0");
-      gen_pop("t1");
-      printf("%sslt t2, t0, t1\n", indent);  // t2 <- t0 < t1
-      printf("%ssub t3, t1, t0\n", indent);  // t3 <- t1 - t0
-      printf("%ssnez t3, t3\n",
-             indent);  // t3 <- t3 != 0 : a == b -> 0, a != b -> 1
-      printf("%sneg  t3, t3\n", indent);     // t3 <- a == b -> 0, a != b -> -1
-      printf("%saddi t3, t3, 1\n", indent);  // t3 <- a == b -> 1, a != b -> 0
-      printf("%sor   t0, t2, t3\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_LOGICAL_AND: {
-      int and_end_index = gen_label_index();
-      gen(node->lhs);
-      gen_pop("t0");
-      printf("%sbeqz t0, .L.and.end.%d\t# logical and 1\n", indent,
-             and_end_index);
-      gen(node->rhs);
-      gen_pop("t0");
-      printf(".L.and.end.%d:\n", and_end_index);
-      gen_push("t0");
-      break;
+  if (node->kind == NODE_NUM) {
+    printf("%sli t0, %d\n", indent, node->val);
+    gen_push("t0");
+  } else if (node->kind == NODE_CONST_STRING) {
+    printf("%slui t0, %%hi(.L.C%zd)\n", indent, node->const_str->id);
+    printf("%saddi t0, t0, %%lo(.L.C%zd)\n", indent, node->const_str->id);
+    gen_push("t0");
+  } else if (node->kind == NODE_MINUS) {
+    gen(node->rhs);
+    gen_pop("t0");
+    printf("%ssub t0, zero, t0\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_ADD) {
+    gen(node->lhs);
+    gen(node->rhs);
+    gen_pop("t0");  // rhs
+    gen_pop("t1");  // lhs
+    if (node->lhs->type->ty == TYPE_POINTER ||
+        node->lhs->type->ty == TYPE_ARRAY) {
+      printf("%sli t2, %zd\n", indent,
+             calc_size_of_type(node->lhs->type->ptr_to));
+      printf("%smul t0, t0, t2\n", indent);
+    } else if (node->rhs->type->ty == TYPE_POINTER ||
+               node->rhs->type->ty == TYPE_ARRAY) {
+      printf("%sli t2, %zd\n", indent,
+             calc_size_of_type(node->lhs->type->ptr_to));
+      printf("%smul t1, t1, t2\n", indent);
     }
-    case NODE_LOGICAL_OR: {
-      int or_end_index = gen_label_index();
-      gen(node->lhs);
-      gen_pop("t0");
-      printf("%sbnez t0, .L.or.end.%d\t# logical or 1\n", indent, or_end_index);
-      gen(node->rhs);
-      gen_pop("t0");
-      printf(".L.or.end.%d:\n", or_end_index);
-      gen_push("t0");
-      break;
+    printf("%sadd t0, t1, t0\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_SUB) {
+    gen(node->lhs);
+    gen(node->rhs);
+    gen_pop("t0");
+    gen_pop("t1");
+    if (node->lhs->type->ty == TYPE_POINTER ||
+        node->lhs->type->ty == TYPE_ARRAY) {
+      printf("%sslli t0, t0, 2\n", indent);  // rhs * 4
+    } else if (node->rhs->type->ty == TYPE_POINTER ||
+               node->rhs->type->ty == TYPE_ARRAY) {
+      printf("%sslli t1, t1, 2\n", indent);  // lhs * 4
     }
-    case NODE_LOGICAL_NOT:
-      gen(node->rhs);
+    printf("%ssub t0, t1, t0\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_MUL) {
+    gen(node->lhs);
+    gen(node->rhs);
+    gen_pop("t0");
+    gen_pop("t1");
+    printf("%smul t0, t1, t0\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_DIV) {
+    gen(node->lhs);
+    gen(node->rhs);
+    gen_pop("t0");
+    gen_pop("t1");
+    printf("%sdiv t0, t1, t0\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_MOD) {
+    gen(node->lhs);
+    gen(node->rhs);
+    gen_pop("t0");
+    gen_pop("t1");
+    printf("%srem t0, t1, t0\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_LT) {
+    gen(node->lhs);
+    gen(node->rhs);
+    gen_pop("t0");
+    gen_pop("t1");
+    printf("%sslt t0, t1, t0\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_LE) {
+    gen(node->lhs);
+    gen(node->rhs);
+    gen_pop("t0");
+    gen_pop("t1");
+    printf("%sslt t2, t1, t0\n", indent);  // t2 <- t1 < t0
+    printf("%ssub t3, t0, t1\n", indent);  // t3 <- t0 - t1
+    printf("%ssnez t3, t3\n",
+           indent);  // t3 <- t3 != 0 : a == b -> 0, a != b -> 1
+    printf("%sneg  t3, t3\n", indent);     // t3 <- a == b -> 0, a != b -> -1
+    printf("%saddi t3, t3, 1\n", indent);  // t3 <- a == b -> 1, a != b -> 0
+    printf("%sor   t0, t2, t3\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_GT) {
+    gen(node->lhs);
+    gen(node->rhs);
+    gen_pop("t0");
+    gen_pop("t1");
+    printf("%ssgt t0, t1, t0\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_GE) {
+    gen(node->lhs);
+    gen(node->rhs);
+    gen_pop("t0");
+    gen_pop("t1");
+    printf("%sslt t2, t0, t1\n", indent);  // t2 <- t0 < t1
+    printf("%ssub t3, t1, t0\n", indent);  // t3 <- t1 - t0
+    printf("%ssnez t3, t3\n",
+           indent);  // t3 <- t3 != 0 : a == b -> 0, a != b -> 1
+    printf("%sneg  t3, t3\n", indent);     // t3 <- a == b -> 0, a != b -> -1
+    printf("%saddi t3, t3, 1\n", indent);  // t3 <- a == b -> 1, a != b -> 0
+    printf("%sor   t0, t2, t3\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_LOGICAL_AND) {
+    int and_end_index = gen_label_index();
+    gen(node->lhs);
+    gen_pop("t0");
+    printf("%sbeqz t0, .L.and.end.%d\t# logical and 1\n", indent,
+           and_end_index);
+    gen(node->rhs);
+    gen_pop("t0");
+    printf(".L.and.end.%d:\n", and_end_index);
+    gen_push("t0");
+  } else if (node->kind == NODE_LOGICAL_OR) {
+    int or_end_index = gen_label_index();
+    gen(node->lhs);
+    gen_pop("t0");
+    printf("%sbnez t0, .L.or.end.%d\t# logical or 1\n", indent, or_end_index);
+    gen(node->rhs);
+    gen_pop("t0");
+    printf(".L.or.end.%d:\n", or_end_index);
+    gen_push("t0");
+  } else if (node->kind == NODE_LOGICAL_NOT) {
+    gen(node->rhs);
+    gen_pop("t0");
+    printf("%sseqz t0, t0\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_EQ) {
+    gen(node->lhs);
+    gen(node->rhs);
+    gen_pop("t0");
+    gen_pop("t1");
+    printf("%sslt t2, t1, t0\n", indent);  // a < b
+    printf("%sslt t3, t0, t1\n", indent);  // a > b
+    printf("%sor  t1, t2, t3\n",
+           indent);  // (a < b) | (a > b) : a==b-> 0, a!=b->1
+    printf("%sli  t0, 1\n", indent);
+    printf("%ssub t0, t0, t1\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_NEQ) {
+    gen(node->lhs);
+    gen(node->rhs);
+    gen_pop("t0");
+    gen_pop("t1");
+    printf("%ssub t0, t1, t0\n", indent);
+    printf("%ssnez t0, t0\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_BITWISE_AND) {
+    gen(node->lhs);
+    gen(node->rhs);
+    gen_pop("t0");  // rhs
+    gen_pop("t1");  // lhs
+    printf("%sand t0, t1, t0\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_BITWISE_XOR) {
+    gen(node->lhs);
+    gen(node->rhs);
+    gen_pop("t0");  // rhs
+    gen_pop("t1");  // lhs
+    printf("%sxor t0, t1, t0\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_BITWISE_OR) {
+    gen(node->lhs);
+    gen(node->rhs);
+    gen_pop("t0");  // rhs
+    gen_pop("t1");  // lhs
+    printf("%sor t0, t1, t0\n", indent);
+    gen_push("t0");
+  } else if (node->kind == NODE_LOCAL_VARIABLE) {
+    gen_lval(node);
+    if (node->type->ty != TYPE_ARRAY) {
       gen_pop("t0");
-      printf("%sseqz t0, t0\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_EQ:
-      gen(node->lhs);
-      gen(node->rhs);
-      gen_pop("t0");
-      gen_pop("t1");
-      printf("%sslt t2, t1, t0\n", indent);  // a < b
-      printf("%sslt t3, t0, t1\n", indent);  // a > b
-      printf("%sor  t1, t2, t3\n",
-             indent);  // (a < b) | (a > b) : a==b-> 0, a!=b->1
-      printf("%sli  t0, 1\n", indent);
-      printf("%ssub t0, t0, t1\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_NEQ:
-      gen(node->lhs);
-      gen(node->rhs);
-      gen_pop("t0");
-      gen_pop("t1");
-      printf("%ssub t0, t1, t0\n", indent);
-      printf("%ssnez t0, t0\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_BITWISE_AND:
-      gen(node->lhs);
-      gen(node->rhs);
-      gen_pop("t0");  // rhs
-      gen_pop("t1");  // lhs
-      printf("%sand t0, t1, t0\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_BITWISE_XOR:
-      gen(node->lhs);
-      gen(node->rhs);
-      gen_pop("t0");  // rhs
-      gen_pop("t1");  // lhs
-      printf("%sxor t0, t1, t0\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_BITWISE_OR:
-      gen(node->lhs);
-      gen(node->rhs);
-      gen_pop("t0");  // rhs
-      gen_pop("t1");  // lhs
-      printf("%sor t0, t1, t0\n", indent);
-      gen_push("t0");
-      break;
-    case NODE_LOCAL_VARIABLE:
-      gen_lval(node);
-      if (node->type->ty != TYPE_ARRAY) {
-        gen_pop("t0");
-        if (calc_size_of_type(node->type) == 4) {
-          printf("%slw t0, 0(t0)\n", indent);
-        } else if (calc_size_of_type(node->type) == 1) {
-          printf("%slb t0, 0(t0)\n", indent);
-        } else {
-          error("invalid size of type: %zd\n", calc_size_of_type(node->type));
-        }
-        gen_push("t0");
-      }
-      break;
-    case NODE_GLOBAL_VARIABLE:
-      gen_lval(node);
-      if (node->type->ty != TYPE_ARRAY) {
-        gen_pop("t0");
-        if (calc_size_of_type(node->type) == 4) {
-          printf("%slw t0, 0(t0)\n", indent);
-        } else if (calc_size_of_type(node->type) == 1) {
-          printf("%slb t0, 0(t0)\n", indent);
-        } else {
-          error("invalid size of type: %zd\n", calc_size_of_type(node->type));
-        }
-        gen_push("t0");
-      }
-      break;
-    case NODE_DOT:
-      gen_lval(node->lhs);
-      gen_pop("t0");
-      if (node->type->ty != TYPE_ARRAY) {
-        printf("%slw t0, %d(t0)\n", indent, node->rhs->offset);
+      if (calc_size_of_type(node->type) == 4) {
+        printf("%slw t0, 0(t0)\n", indent);
+      } else if (calc_size_of_type(node->type) == 1) {
+        printf("%slb t0, 0(t0)\n", indent);
       } else {
-        printf("%saddi t0, t0, %d\n", indent, node->rhs->offset);
+        error("invalid size of type: %zd\n", calc_size_of_type(node->type));
       }
       gen_push("t0");
-      break;
-    case NODE_ARROW:
-      gen(node->lhs);
+    }
+  } else if (node->kind == NODE_GLOBAL_VARIABLE) {
+    gen_lval(node);
+    if (node->type->ty != TYPE_ARRAY) {
       gen_pop("t0");
-      if (node->type->ty != TYPE_ARRAY) {
-        printf("%slw t0, %d(t0)\n", indent, node->rhs->offset);
+      if (calc_size_of_type(node->type) == 4) {
+        printf("%slw t0, 0(t0)\n", indent);
+      } else if (calc_size_of_type(node->type) == 1) {
+        printf("%slb t0, 0(t0)\n", indent);
       } else {
-        printf("%saddi t0, t0, %d\n", indent, node->rhs->offset);
+        error("invalid size of type: %zd\n", calc_size_of_type(node->type));
       }
       gen_push("t0");
-      break;
-    case NODE_ASSIGN:
+    }
+  } else if (node->kind == NODE_DOT) {
+    gen_lval(node->lhs);
+    gen_pop("t0");
+    if (node->type->ty != TYPE_ARRAY) {
+      printf("%slw t0, %d(t0)\n", indent, node->rhs->offset);
+    } else {
+      printf("%saddi t0, t0, %d\n", indent, node->rhs->offset);
+    }
+    gen_push("t0");
+  } else if (node->kind == NODE_ARROW) {
+    gen(node->lhs);
+    gen_pop("t0");
+    if (node->type->ty != TYPE_ARRAY) {
+      printf("%slw t0, %d(t0)\n", indent, node->rhs->offset);
+    } else {
+      printf("%saddi t0, t0, %d\n", indent, node->rhs->offset);
+    }
+    gen_push("t0");
+  } else if (node->kind == NODE_ASSIGN) {
+    gen(node->rhs);
+    gen_lval(node->lhs);
+    gen_pop("t1");  // address
+    gen_pop("t0");  // value
+
+    if (calc_size_of_type(node->type) == 4) {
+      printf("%ssw t0, 0(t1)\n", indent);
+    } else if (calc_size_of_type(node->type) == 1) {
+      printf("%sandi t0, t0, 0xFF\n", indent);
+      printf("%ssb t0, 0(t1)\n", indent);
+    } else {
+      error("invalid size of type: %zd\n", calc_size_of_type(node->type));
+    }
+    gen_push("t0");                         // value again
+  } else if (node->kind == NODE_VAR_DEC) {  // almost same as NODE_ASSIGN
+    if (node->rhs && node->lhs) {
       gen(node->rhs);
       gen_lval(node->lhs);
       gen_pop("t1");  // address
@@ -1998,146 +1987,115 @@ void gen(node_t *node) {
       } else {
         error("invalid size of type: %zd\n", calc_size_of_type(node->type));
       }
-      gen_push("t0");  // value again
-      break;
-    case NODE_VAR_DEC:  // almost same as NODE_ASSIGN
-      if (node->rhs && node->lhs) {
-        gen(node->rhs);
-        gen_lval(node->lhs);
-        gen_pop("t1");  // address
-        gen_pop("t0");  // value
-
-        if (calc_size_of_type(node->type) == 4) {
-          printf("%ssw t0, 0(t1)\n", indent);
-        } else if (calc_size_of_type(node->type) == 1) {
-          printf("%sandi t0, t0, 0xFF\n", indent);
-          printf("%ssb t0, 0(t1)\n", indent);
-        } else {
-          error("invalid size of type: %zd\n", calc_size_of_type(node->type));
-        }
-        // not push value because it is not used
-      }
-      break;
-    case NODE_RETURN:
-      if (node->rhs) {
-        gen(node->rhs);
-        gen_pop("a0");
-      }
-      gen_free_stack(local_variables);
-      gen_pop("fp");
-      printf("%sret\n", indent);
-      break;
-    case NODE_BREAK:
-      printf("%sj .L.loop.end%d\n", indent, last_loop_label_index);
-      break;
-    case NODE_CONTINUE:
-      printf("%sj .L.loop.next%d\n", indent, last_loop_label_index);
-      break;
-    case NODE_IF:
-      gen(node->cond);
-      gen_pop("t0");
-      int if_index = gen_label_index();
-      printf("%sbeqz t0, .L.else%d\n", indent, if_index);
-      gen(node->clause_then);
-      printf("%sj .L.if.end%d\n", indent, if_index);
-      printf(".L.else%d:\n", if_index);
-      if (node->clause_else) {
-        gen(node->clause_else);
-      }
-      printf(".L.if.end%d:\n", if_index);
-      break;
-    case NODE_WHILE: {
-      int old_loop_label_index = last_loop_label_index;
-      int while_index = gen_loop_label_index();
-      printf(".L.loop.cond%d: # while loop start\n", while_index);
-      gen(node->cond);
-      gen_pop("t0");
-      printf("%sbeqz t0, .L.loop.end%d\n", indent, while_index);
-      gen(node->clause_then);
-      printf(".L.loop.next%d: # while loop next (empty)\n",
-             while_index);  // empty, but needed for break/continue
-      printf("%sj .L.loop.cond%d\n", indent, while_index);
-      printf(".L.loop.end%d: # while loop end\n", while_index);
-      last_loop_label_index = old_loop_label_index;
-      break;
+      // not push value because it is not used
     }
-    case NODE_FOR: {
-      int old_loop_label_index = last_loop_label_index;
-      int for_index = gen_loop_label_index();
-      printf("%s# for start\n", indent);
-      if (node->init) {
-        printf("%s# for init\n", indent);
-        gen(node->init);
-      } else {
-        printf("%s# for init: empty\n", indent);
-      }
-      printf(".L.loop.cond%d: # for cond\n", for_index);
-      if (node->cond) {
-        printf("%s# for cond\n", indent);
-        gen(node->cond);
-        gen_pop("t0");
-        printf("%sbeqz t0, .L.loop.end%d\n", indent, for_index);
-      } else {
-        printf("%s# for cond: empty\n", indent);
-      }
-      printf("%s# for body\n", indent);
-      gen(node->clause_then);
-      printf(".L.loop.next%d: # for next\n", for_index);
-      if (node->next) {
-        gen(node->next);
-      }
-      printf("%sj .L.loop.cond%d\n", indent, for_index);
-      printf(".L.loop.end%d: # for end\n", for_index);
-      last_loop_label_index = old_loop_label_index;
-      break;
-    }
-    case NODE_BLOCK:
-      for (size_t i = 0; i < node->statement_count; i++) {
-        gen(node->statements[i]);
-      }
-      break;
-    case NODE_CALL: {
-      char *name = calloc(node->name->len + 1, 1);
-      memcpy(name, node->name->str, node->name->len);
-
-      for (int i = 0; i < node->args_count; i++) {
-        gen(node->args[node->args_count - 1 - i]);
-      }
-      for (int i = 0; i < node->args_count; i++) {
-        char s[3] = "a0";
-        s[1] = 48 + i;
-        gen_pop(s);
-      }
-
-      // stack aligned 16
-      gen_push("ra");
-      gen_push("s1");
-      printf("%sandi s1, sp, 0xF\n", indent);  // s1 = SP & 0xF
-      printf("%ssub  sp, sp, s1\n", indent);   // align SP
-      printf("%scall %s\n", indent, name);
-      printf("%sadd  sp, sp, s1\n", indent);  // recover SP
-      gen_pop("s1");
-      gen_pop("ra");
-      gen_push("a0");
-      break;
-    }
-    case NODE_ADDR:
-      gen_lval(node->rhs);
-      break;
-    case NODE_DEREF:
+  } else if (node->kind == NODE_RETURN) {
+    if (node->rhs) {
       gen(node->rhs);
+      gen_pop("a0");
+    }
+    gen_free_stack(local_variables);
+    gen_pop("fp");
+    printf("%sret\n", indent);
+  } else if (node->kind == NODE_BREAK) {
+    printf("%sj .L.loop.end%d\n", indent, last_loop_label_index);
+  } else if (node->kind == NODE_CONTINUE) {
+    printf("%sj .L.loop.next%d\n", indent, last_loop_label_index);
+  } else if (node->kind == NODE_IF) {
+    gen(node->cond);
+    gen_pop("t0");
+    int if_index = gen_label_index();
+    printf("%sbeqz t0, .L.else%d\n", indent, if_index);
+    gen(node->clause_then);
+    printf("%sj .L.if.end%d\n", indent, if_index);
+    printf(".L.else%d:\n", if_index);
+    if (node->clause_else) {
+      gen(node->clause_else);
+    }
+    printf(".L.if.end%d:\n", if_index);
+  } else if (node->kind == NODE_WHILE) {
+    int old_loop_label_index = last_loop_label_index;
+    int while_index = gen_loop_label_index();
+    printf(".L.loop.cond%d: # while loop start\n", while_index);
+    gen(node->cond);
+    gen_pop("t0");
+    printf("%sbeqz t0, .L.loop.end%d\n", indent, while_index);
+    gen(node->clause_then);
+    printf(".L.loop.next%d: # while loop next (empty)\n",
+           while_index);  // empty, but needed for break/continue
+    printf("%sj .L.loop.cond%d\n", indent, while_index);
+    printf(".L.loop.end%d: # while loop end\n", while_index);
+    last_loop_label_index = old_loop_label_index;
+  } else if (node->kind == NODE_FOR) {
+    int old_loop_label_index = last_loop_label_index;
+    int for_index = gen_loop_label_index();
+    printf("%s# for start\n", indent);
+    if (node->init) {
+      printf("%s# for init\n", indent);
+      gen(node->init);
+    } else {
+      printf("%s# for init: empty\n", indent);
+    }
+    printf(".L.loop.cond%d: # for cond\n", for_index);
+    if (node->cond) {
+      printf("%s# for cond\n", indent);
+      gen(node->cond);
       gen_pop("t0");
-      if (calc_size_of_type(node->type) == 4) {
-        printf("%slw t0, 0(t0)\n", indent);
-      } else if (calc_size_of_type(node->type) == 1) {
-        printf("%slb t0, 0(t0)\n", indent);
-      } else {
-        error("invalid size of type: %zd\n", calc_size_of_type(node->type));
-      }
-      gen_push("t0");
-      break;
-    default:
-      error("gen invalid node, kind=%d", node->kind);
+      printf("%sbeqz t0, .L.loop.end%d\n", indent, for_index);
+    } else {
+      printf("%s# for cond: empty\n", indent);
+    }
+    printf("%s# for body\n", indent);
+    gen(node->clause_then);
+    printf(".L.loop.next%d: # for next\n", for_index);
+    if (node->next) {
+      gen(node->next);
+    }
+    printf("%sj .L.loop.cond%d\n", indent, for_index);
+    printf(".L.loop.end%d: # for end\n", for_index);
+    last_loop_label_index = old_loop_label_index;
+  } else if (node->kind == NODE_BLOCK) {
+    for (size_t i = 0; i < node->statement_count; i++) {
+      gen(node->statements[i]);
+    }
+  } else if (node->kind == NODE_CALL) {
+    char *name = calloc(node->name->len + 1, 1);
+    memcpy(name, node->name->str, node->name->len);
+
+    for (int i = 0; i < node->args_count; i++) {
+      gen(node->args[node->args_count - 1 - i]);
+    }
+    for (int i = 0; i < node->args_count; i++) {
+      char s[3] = "a0";
+      s[1] = 48 + i;
+      gen_pop(s);
+    }
+
+    // stack aligned 16
+    gen_push("ra");
+    gen_push("s1");
+    printf("%sandi s1, sp, 0xF\n", indent);  // s1 = SP & 0xF
+    printf("%ssub  sp, sp, s1\n", indent);   // align SP
+    printf("%scall %s\n", indent, name);
+    printf("%sadd  sp, sp, s1\n", indent);  // recover SP
+    gen_pop("s1");
+    gen_pop("ra");
+    gen_push("a0");
+  } else if (node->kind == NODE_ADDR) {
+    gen_lval(node->rhs);
+  } else if (node->kind == NODE_DEREF) {
+    gen(node->rhs);
+    gen_pop("t0");
+    if (calc_size_of_type(node->type) == 4) {
+      printf("%slw t0, 0(t0)\n", indent);
+    } else if (calc_size_of_type(node->type) == 1) {
+      printf("%slb t0, 0(t0)\n", indent);
+    } else {
+      error("invalid size of type: %zd\n", calc_size_of_type(node->type));
+    }
+    gen_push("t0");
+  } else {
+    error("gen invalid node, kind=%d", node->kind);
   }
   if (node->ignore) {
     gen_pop("zero");
