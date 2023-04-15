@@ -3,6 +3,8 @@ int main() {
   putchar('a' + (10 == 10));
   putchar('a' + (10 != 10));
   putchar('a' + (0 != 1));
+  putchar('a' + (0 == 0));
+  putchar('a' + (0 != 0));
   putchar('a' + (1 + 2 == 3));
   putchar('a' + (1 + 2 + 3 == 2 * 3));
   putchar('a' + (1 < 2));

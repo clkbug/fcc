@@ -29,6 +29,10 @@ SRCS := \
 	struct_recursive.c \
 	logicalop.c \
 	permutation.c \
+	cmp_torture.c \
+	string_putchar.c \
+	string_null.c \
+	calculator_stack.c \
 	# post_increment.c 	\
 
 
@@ -52,6 +56,7 @@ all: $(TEST_CMP_RESULT) $(REF_STDOUT) $(REF_EXE) $(TEST_STDOUT) $(TEST_ASM) $(TE
 
 # .PHONY: $(TEST_CMP_RESULT)
 %.cmp: %.ref.stdout %.test.stdout
+	diff $^     # 差分があればここで止まる
 	diff $^ >$@
 
 %.ref.stdout: %.ref.exe

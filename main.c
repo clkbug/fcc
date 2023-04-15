@@ -284,6 +284,9 @@ token_t *tokenize(char *p) {
         p++;
         cur = new_token(TK_INT, cur, p, 0);
         switch (*p) {
+          case '0':
+            cur->num = '\0';
+            break;
           case 'a':
             cur->num = '\a';
             break;
@@ -1664,12 +1667,12 @@ void print_indent() { printf("%s", indent); }
 
 void gen_pop(char *dst) {
   printf("%slw %s, 0(sp)          # pop\n", indent, dst);
-  printf("%saddi sp, sp, +4       # ___\n", indent);
+  printf("%saddi sp, sp, +4       #  %s\n", indent, dst);
 }
 
 void gen_push(char *src) {
   printf("%saddi sp, sp, -4       # push\n", indent);
-  printf("%ssw %s, 0(sp)          # ____\n", indent, src);
+  printf("%ssw %s, 0(sp)          #  %s\n", indent, src, src);
 }
 
 void gen(node_t *node);
@@ -2080,7 +2083,13 @@ void gen(node_t *node) {
     case NODE_DEREF:
       gen(node->rhs);
       gen_pop("t0");
-      printf("%slw t0, 0(t0)\n", indent);
+      if (calc_size_of_type(node->type) == 4) {
+        printf("%slw t0, 0(t0)\n", indent);
+      } else if (calc_size_of_type(node->type) == 1) {
+        printf("%slb t0, 0(t0)\n", indent);
+      } else {
+        error("invalid size of type: %zd\n", calc_size_of_type(node->type));
+      }
       gen_push("t0");
       break;
     default:
@@ -2174,6 +2183,8 @@ void print_header() {
 void print_constant_strings() {
   constant_string_t *cur = constant_string;
   while (cur) {
+    printf("  .section .rodata\n");
+    printf("  .balign  4\n");
     printf(".LC%zd:\n", cur->id);
     printf("  .string ");
     print_str_len(stdout, cur->tok->str, cur->tok->len);
