@@ -305,6 +305,10 @@ token_t *tokenize(char *p) {
       p++;
       str_len = 1;
       while (*p != '"') {
+        if (*p == '\\') {
+          str_len++;
+          p++;
+        }
         str_len++;
         p++;
       }
