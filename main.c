@@ -2115,45 +2115,41 @@ void print_func_epilogue(declaration_t *dec) {}
 
 void gen_declaration(declaration_t *dec) {
   depth = 1;
-  switch (dec->declaration_type) {
-    case DECLARATION_GLOBAL_VARIABLE:
-      printf("  .globl  ");
-      print_str_len(stdout, dec->name->str, dec->name->len);
-      printf("\n");
-      printf("  .section  .sdata,\"aw\"\n");
-      printf("  .type     ");
-      print_str_len(stdout, dec->name->str, dec->name->len);
-      printf(", @object\n");
+  if (dec->declaration_type == DECLARATION_GLOBAL_VARIABLE) {
+    printf("  .globl  ");
+    print_str_len(stdout, dec->name->str, dec->name->len);
+    printf("\n");
+    printf("  .section  .sdata,\"aw\"\n");
+    printf("  .type     ");
+    print_str_len(stdout, dec->name->str, dec->name->len);
+    printf(", @object\n");
 
-      printf("  .size     ");
-      print_str_len(stdout, dec->name->str, dec->name->len);
-      printf(", %zd\n", calc_size_of_type(dec->type));
+    printf("  .size     ");
+    print_str_len(stdout, dec->name->str, dec->name->len);
+    printf(", %zd\n", calc_size_of_type(dec->type));
 
-      printf("  .balign    8\n");
+    printf("  .balign    8\n");
 
-      print_str_len(stdout, dec->name->str, dec->name->len);
-      printf(":\n");
-      if (dec->constant_string) {
-        printf("  .word .L.C%zd", dec->constant_string->id);
-      } else {
-        printf("  .zero %zd\n", calc_size_of_type(dec->type));
-      }
-      printf("\n\n");
-      break;
-    case DECLARATION_FUNCTION:
-      update_indent();
-      print_func_prologue(dec);
-      for (size_t i = 0; i < dec->func_statement_count; i++) {
-        gen(dec->func_statements[i]);
-      }
-      print_func_epilogue(dec);
-      local_variables = NULL;
-      break;
-    case DECLARATION_TYPEDEF:
-      // do nothing
-      break;
-    default:
-      error("unreachable! invalid declaration");
+    print_str_len(stdout, dec->name->str, dec->name->len);
+    printf(":\n");
+    if (dec->constant_string) {
+      printf("  .word .L.C%zd", dec->constant_string->id);
+    } else {
+      printf("  .zero %zd\n", calc_size_of_type(dec->type));
+    }
+    printf("\n\n");
+  } else if (dec->declaration_type == DECLARATION_FUNCTION) {
+    update_indent();
+    print_func_prologue(dec);
+    for (size_t i = 0; i < dec->func_statement_count; i++) {
+      gen(dec->func_statements[i]);
+    }
+    print_func_epilogue(dec);
+    local_variables = NULL;
+  } else if (dec->declaration_type == DECLARATION_TYPEDEF) {
+    // do nothing
+  } else {
+    error("unreachable! invalid declaration");
   }
 }
 
