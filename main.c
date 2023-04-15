@@ -24,26 +24,26 @@ int gen_label_index() {
   return old_label_index;
 }
 
-typedef enum {
-  TK_INVALID,
-  TK_RESERVED,
-  TK_RETURN,
-  TK_BREAK,
-  TK_CONTINUE,
-  TK_IF,
-  TK_ELSE,
-  TK_WHILE,
-  TK_FOR,
-  TK_IDENT,
-  TK_INT,
-  TK_TYPE_INT,
-  TK_TYPE_CHAR,
-  TK_TYPE_VOID,
-  TK_STRING,
-  TK_TYPEDEF,
-  TK_STRUCT,
-  TK_EOF,
-} token_kind_t;
+typedef int token_kind_t;
+
+const token_kind_t TK_INVALID = 0;
+const token_kind_t TK_RESERVED = 1;
+const token_kind_t TK_RETURN = 2;
+const token_kind_t TK_BREAK = 3;
+const token_kind_t TK_CONTINUE = 4;
+const token_kind_t TK_IF = 5;
+const token_kind_t TK_ELSE = 6;
+const token_kind_t TK_WHILE = 7;
+const token_kind_t TK_FOR = 8;
+const token_kind_t TK_IDENT = 9;
+const token_kind_t TK_INT = 10;
+const token_kind_t TK_TYPE_INT = 11;
+const token_kind_t TK_TYPE_CHAR = 12;
+const token_kind_t TK_TYPE_VOID = 13;
+const token_kind_t TK_STRING = 14;
+const token_kind_t TK_TYPEDEF = 15;
+const token_kind_t TK_STRUCT = 16;
+const token_kind_t TK_EOF = 17;
 
 typedef struct token_t {
   token_kind_t kind;
@@ -331,16 +331,16 @@ token_t *tokenize(char *p) {
   return head.next;
 }
 
-typedef enum type_kind_t {
-  TYPE_INVALID,
-  TYPE_VOID,
-  TYPE_INT,
-  TYPE_CHAR,
-  TYPE_POINTER,
-  TYPE_ARRAY,
-  TYPE_FUNCTION,
-  TYPE_STRUCT,
-} type_kind_t;
+typedef int type_kind_t;
+
+type_kind_t TYPE_INVALID = 0;
+type_kind_t TYPE_VOID = 1;
+type_kind_t TYPE_INT = 2;
+type_kind_t TYPE_CHAR = 3;
+type_kind_t TYPE_POINTER = 4;
+type_kind_t TYPE_ARRAY = 5;
+type_kind_t TYPE_FUNCTION = 6;
+type_kind_t TYPE_STRUCT = 7;
 
 #define MAX_ARGS 8
 #define MAX_STRUCT_MEMBERS 8
@@ -674,49 +674,48 @@ constant_string_t *add_constant_string(token_t *tok) {
   return s;
 }
 
-typedef enum {
-  NODE_INVALID,
-  NODE_VAR_DEC,
-  NODE_TYPEDEF,
-  NODE_MINUS,
-  NODE_ADD,
-  NODE_SUB,
-  NODE_MUL,
-  NODE_DIV,
-  NODE_MOD,
-  NODE_EQ,
-  NODE_NEQ,
-  NODE_LT,
-  NODE_LE,
-  NODE_GT,
-  NODE_GE,
-  NODE_LOGICAL_AND,
-  NODE_LOGICAL_OR,
-  NODE_LOGICAL_NOT,
-  NODE_BITWISE_AND,
-  NODE_BITWISE_OR,
-  // NODE_BITWISE_NOT, // not implemented yet
-  NODE_BITWISE_XOR,
-  NODE_NUM,
-  NODE_CONST_STRING,
-  NODE_ASSIGN,
-  NODE_LOCAL_VARIABLE,
-  NODE_GLOBAL_VARIABLE,
-  NODE_RETURN,
-  NODE_BREAK,
-  NODE_CONTINUE,
-  NODE_IF,
-  NODE_WHILE,
-  NODE_FOR,
-  NODE_BLOCK,
-  NODE_CALL,
-  NODE_ADDR,
-  NODE_DEREF,
-  NODE_STRUCT_MEMBER,
-  NODE_DOT,
-  NODE_ARROW,
-  // NODE_INDEX, // a[i] -> *(a + i)
-} node_kind_t;
+typedef int node_kind_t;
+const node_kind_t NODE_INVALID = 0;
+const node_kind_t NODE_VAR_DEC = 1;
+const node_kind_t NODE_TYPEDEF = 2;
+const node_kind_t NODE_MINUS = 3;
+const node_kind_t NODE_ADD = 4;
+const node_kind_t NODE_SUB = 5;
+const node_kind_t NODE_MUL = 6;
+const node_kind_t NODE_DIV = 7;
+const node_kind_t NODE_MOD = 8;
+const node_kind_t NODE_EQ = 9;
+const node_kind_t NODE_NEQ = 10;
+const node_kind_t NODE_LT = 11;
+const node_kind_t NODE_LE = 12;
+const node_kind_t NODE_GT = 13;
+const node_kind_t NODE_GE = 14;
+const node_kind_t NODE_LOGICAL_AND = 15;
+const node_kind_t NODE_LOGICAL_OR = 16;
+const node_kind_t NODE_LOGICAL_NOT = 17;
+const node_kind_t NODE_BITWISE_AND = 18;
+const node_kind_t NODE_BITWISE_OR = 19;
+// NODE_BITWISE_NOT, // not implemented yet
+const node_kind_t NODE_BITWISE_XOR = 20;
+const node_kind_t NODE_NUM = 21;
+const node_kind_t NODE_CONST_STRING = 22;
+const node_kind_t NODE_ASSIGN = 23;
+const node_kind_t NODE_LOCAL_VARIABLE = 24;
+const node_kind_t NODE_GLOBAL_VARIABLE = 25;
+const node_kind_t NODE_RETURN = 26;
+const node_kind_t NODE_BREAK = 27;
+const node_kind_t NODE_CONTINUE = 28;
+const node_kind_t NODE_IF = 29;
+const node_kind_t NODE_WHILE = 30;
+const node_kind_t NODE_FOR = 31;
+const node_kind_t NODE_BLOCK = 32;
+const node_kind_t NODE_CALL = 33;
+const node_kind_t NODE_ADDR = 34;
+const node_kind_t NODE_DEREF = 35;
+const node_kind_t NODE_STRUCT_MEMBER = 36;
+const node_kind_t NODE_DOT = 37;
+const node_kind_t NODE_ARROW = 38;
+// NODE_INDEX, // a[i] -> *(a + i)
 
 #define MAX_STATEMENTS 1024
 typedef struct node_t {
@@ -839,13 +838,12 @@ constant_string_t *add_global_variable_with_constant_string(token_t *name,
   return var->constant_string;
 }
 
-typedef enum {
-  DECLARATION_INVALID,
-  DECLARATION_FUNCTION,
-  DECLARATION_GLOBAL_VARIABLE,
-  DECLARATION_TYPEDEF,
-  // DECLARATION_STRUCT,
-} declaration_type_t;
+typedef int declaration_type_t;
+const declaration_type_t DECLARATION_INVALID = 0;
+const declaration_type_t DECLARATION_FUNCTION = 1;
+const declaration_type_t DECLARATION_GLOBAL_VARIABLE = 2;
+const declaration_type_t DECLARATION_TYPEDEF = 3;
+// DECLARATION_STRUCT,
 
 typedef struct declaration_t {
   declaration_type_t declaration_type;
