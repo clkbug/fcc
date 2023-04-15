@@ -1776,6 +1776,11 @@ void gen_free_stack(local_variable_t *lvar) {
 
 void gen(node_t *node) {
   int i;
+  char s[3];
+  int index;
+  int old_loop_label_index;
+  char *name;
+
   inc_depth();
   print_node(node);
   eprintf("\n");
@@ -1886,23 +1891,22 @@ void gen(node_t *node) {
     printf("%sor   t0, t2, t3\n", indent);
     gen_push("t0");
   } else if (node->kind == NODE_LOGICAL_AND) {
-    int and_end_index = gen_label_index();
+    index = gen_label_index();
     gen(node->lhs);
     gen_pop("t0");
-    printf("%sbeqz t0, .L.and.end.%d\t# logical and 1\n", indent,
-           and_end_index);
+    printf("%sbeqz t0, .L.and.end.%d\t# logical and 1\n", indent, index);
     gen(node->rhs);
     gen_pop("t0");
-    printf(".L.and.end.%d:\n", and_end_index);
+    printf(".L.and.end.%d:\n", index);
     gen_push("t0");
   } else if (node->kind == NODE_LOGICAL_OR) {
-    int or_end_index = gen_label_index();
+    index = gen_label_index();
     gen(node->lhs);
     gen_pop("t0");
-    printf("%sbnez t0, .L.or.end.%d\t# logical or 1\n", indent, or_end_index);
+    printf("%sbnez t0, .L.or.end.%d\t# logical or 1\n", indent, index);
     gen(node->rhs);
     gen_pop("t0");
-    printf(".L.or.end.%d:\n", or_end_index);
+    printf(".L.or.end.%d:\n", index);
     gen_push("t0");
   } else if (node->kind == NODE_LOGICAL_NOT) {
     gen(node->rhs);
@@ -2041,31 +2045,31 @@ void gen(node_t *node) {
   } else if (node->kind == NODE_IF) {
     gen(node->cond);
     gen_pop("t0");
-    int if_index = gen_label_index();
-    printf("%sbeqz t0, .L.else%d\n", indent, if_index);
+    index = gen_label_index();
+    printf("%sbeqz t0, .L.else%d\n", indent, index);
     gen(node->clause_then);
-    printf("%sj .L.if.end%d\n", indent, if_index);
-    printf(".L.else%d:\n", if_index);
+    printf("%sj .L.if.end%d\n", indent, index);
+    printf(".L.else%d:\n", index);
     if (node->clause_else) {
       gen(node->clause_else);
     }
-    printf(".L.if.end%d:\n", if_index);
+    printf(".L.if.end%d:\n", index);
   } else if (node->kind == NODE_WHILE) {
-    int old_loop_label_index = last_loop_label_index;
-    int while_index = gen_loop_label_index();
-    printf(".L.loop.cond%d: # while loop start\n", while_index);
+    old_loop_label_index = last_loop_label_index;
+    index = gen_loop_label_index();
+    printf(".L.loop.cond%d: # while loop start\n", index);
     gen(node->cond);
     gen_pop("t0");
-    printf("%sbeqz t0, .L.loop.end%d\n", indent, while_index);
+    printf("%sbeqz t0, .L.loop.end%d\n", indent, index);
     gen(node->clause_then);
     printf(".L.loop.next%d: # while loop next (empty)\n",
-           while_index);  // empty, but needed for break/continue
-    printf("%sj .L.loop.cond%d\n", indent, while_index);
-    printf(".L.loop.end%d: # while loop end\n", while_index);
+           index);  // empty, but needed for break/continue
+    printf("%sj .L.loop.cond%d\n", indent, index);
+    printf(".L.loop.end%d: # while loop end\n", index);
     last_loop_label_index = old_loop_label_index;
   } else if (node->kind == NODE_FOR) {
-    int old_loop_label_index = last_loop_label_index;
-    int for_index = gen_loop_label_index();
+    old_loop_label_index = last_loop_label_index;
+    index = gen_loop_label_index();
     printf("%s# for start\n", indent);
     if (node->init) {
       printf("%s# for init\n", indent);
@@ -2073,37 +2077,39 @@ void gen(node_t *node) {
     } else {
       printf("%s# for init: empty\n", indent);
     }
-    printf(".L.loop.cond%d: # for cond\n", for_index);
+    printf(".L.loop.cond%d: # for cond\n", index);
     if (node->cond) {
       printf("%s# for cond\n", indent);
       gen(node->cond);
       gen_pop("t0");
-      printf("%sbeqz t0, .L.loop.end%d\n", indent, for_index);
+      printf("%sbeqz t0, .L.loop.end%d\n", indent, index);
     } else {
       printf("%s# for cond: empty\n", indent);
     }
     printf("%s# for body\n", indent);
     gen(node->clause_then);
-    printf(".L.loop.next%d: # for next\n", for_index);
+    printf(".L.loop.next%d: # for next\n", index);
     if (node->next) {
       gen(node->next);
     }
-    printf("%sj .L.loop.cond%d\n", indent, for_index);
-    printf(".L.loop.end%d: # for end\n", for_index);
+    printf("%sj .L.loop.cond%d\n", indent, index);
+    printf(".L.loop.end%d: # for end\n", index);
     last_loop_label_index = old_loop_label_index;
   } else if (node->kind == NODE_BLOCK) {
     for (i = 0; i < node->statement_count; ++i) {
       gen(node->statements[i]);
     }
   } else if (node->kind == NODE_CALL) {
-    char *name = calloc(node->name->len + 1, 1);
+    name = calloc(node->name->len + 1, 1);
     memcpy(name, node->name->str, node->name->len);
 
     for (i = 0; i < node->args_count; ++i) {
       gen(node->args[node->args_count - 1 - i]);
     }
     for (i = 0; i < node->args_count; ++i) {
-      char s[3] = "a0";
+      s[0] = 'a';
+      s[1] = '0';
+      s[2] = '\0';
       s[1] = 48 + i;
       gen_pop(s);
     }
@@ -2143,6 +2149,7 @@ void gen(node_t *node) {
 void print_func_prologue(declaration_t *dec) {
   size_t i;
   char reg[3];
+  local_variable_t *var;
   printf("  .text\n");
   printf("  .align 4\n");
   printf("  .globl    %.*s\n", dec->name->len, dec->name->str);
@@ -2158,7 +2165,7 @@ void print_func_prologue(declaration_t *dec) {
     reg[0] = 'a';
     reg[1] = '0';
     reg[2] = '\0';
-    local_variable_t *var = find_local_variable(dec->func_arg[i]);
+    var = find_local_variable(dec->func_arg[i]);
     reg[1] = reg[1] + i;
     eprintf("push arg %s\n", reg);
     printf("%ssw %s, %d(fp)\n", indent, reg, var->offset);
@@ -2223,6 +2230,7 @@ void print_constant_strings() {
 }
 
 int main(int argc, char **argv) {
+  declaration_t *dec;
   if (argc != 2) {
     error("argc = %d\n", argc);
     return 1;
@@ -2233,7 +2241,7 @@ int main(int argc, char **argv) {
 
   print_header();
   while (!at_eof()) {
-    declaration_t *dec = parse_declaration();
+    dec = parse_declaration();
     if (dec) {
       print_declaration(dec);
       gen_declaration(dec);

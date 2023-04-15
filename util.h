@@ -11,7 +11,7 @@ void error(char *fmt, ...) {
 void eprintf(char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  fprintf(stderr, fmt, ap);
+  vfprintf(stderr, fmt, ap);
 }
 
 char *read_file(char *path) {
