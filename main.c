@@ -265,33 +265,24 @@ token_t *tokenize(char *p) {
       if (*p == '\\') {
         p++;
         cur = new_token(TK_INT, cur, p, 0);
-        switch (*p) {
-          case '0':
-            cur->num = '\0';
-            break;
-          case 'a':
-            cur->num = '\a';
-            break;
-          case 'b':
-            cur->num = '\b';
-            break;
-          case 'f':
-            cur->num = '\f';
-            break;
-          case 'n':
-            cur->num = '\n';
-            break;
-          case 't':
-            cur->num = '\t';
-            break;
-          case '\\':
-            cur->num = '\\';
-            break;
-          case '\'':
-            cur->num = '\'';
-            break;
-          default:
-            error("failed to tokenize at '%c'\n'\\?...", *p);
+        if (*p == '0') {
+          cur->num = '\0';
+        } else if (*p == 'a') {
+          cur->num = '\a';
+        } else if (*p == 'b') {
+          cur->num = '\b';
+        } else if (*p == 'f') {
+          cur->num = '\f';
+        } else if (*p == 'n') {
+          cur->num = '\n';
+        } else if (*p == 't') {
+          cur->num = '\t';
+        } else if (*p == '\\') {
+          cur->num = '\\';
+        } else if (*p == '\'') {
+          cur->num = '\'';
+        } else {
+          error("failed to tokenize at '%c'\n'\\?...", *p);
         }
       } else {
         cur = new_token(TK_INT, cur, p, 0);
