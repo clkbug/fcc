@@ -37,6 +37,7 @@ SRCS := \
 	const.c \
 	string_double_quote.c \
 	sizeof.c \
+	struct_recursive_inc.c \
 	# post_increment.c 	\
 
 
