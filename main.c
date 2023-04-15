@@ -14,9 +14,15 @@ int label_index = 0;
 
 int gen_loop_label_index() {
   last_loop_label_index = label_index;
-  return label_index++;
+  ++label_index;
+  return last_loop_label_index;
 }
-int gen_label_index() { return label_index++; }
+
+int gen_label_index() {
+  int old_label_index = label_index;
+  ++label_index;
+  return old_label_index;
+}
 
 typedef enum {
   TK_INVALID,
@@ -164,14 +170,14 @@ token_t *tokenize(char *p) {
 
   while (*p) {
     if (isspace(*p)) {
-      p++;
+      ++p;
       continue;
     }
 
     if (strncmp(p, "//", 2) == 0) {
       p += 2;
       while (*p != '\n') {
-        p++;
+        ++p;
       }
       continue;
     }
@@ -189,7 +195,7 @@ token_t *tokenize(char *p) {
     if (*p == '#') {
       p += 1;
       while (*p != '\n') {
-        p++;
+        ++p;
       }
       continue;
     }
@@ -215,7 +221,7 @@ token_t *tokenize(char *p) {
         *p == ',' || *p == '&' || *p == '.' || *p == '|' || *p == '!' ||
         *p == '^') {
       cur = new_token(TK_RESERVED, cur, p, 1);
-      p++;
+      ++p;
       continue;
     }
 
@@ -265,9 +271,9 @@ token_t *tokenize(char *p) {
     }
 
     if (*p == '\'') {
-      p++;
+      ++p;
       if (*p == '\\') {
-        p++;
+        ++p;
         cur = new_token(TK_INT, cur, p, 0);
         if (*p == '0') {
           cur->num = '\0';
@@ -292,28 +298,28 @@ token_t *tokenize(char *p) {
         cur = new_token(TK_INT, cur, p, 0);
         cur->num = *p;
       }
-      p++;
+      ++p;
       if (*p != '\'') {
         error("failed to tokenize at '%c'\n'x?...", *p);
       }
-      p++;
+      ++p;
       continue;
     }
 
     if (*p == '"') {
       q = p;
-      p++;
+      ++p;
       str_len = 1;
       while (*p != '"') {
         if (*p == '\\') {
-          str_len++;
-          p++;
+          ++str_len;
+          ++p;
         }
-        str_len++;
-        p++;
+        ++str_len;
+        ++p;
       }
-      p++;
-      str_len++;  // includeing '"'s
+      ++p;
+      ++str_len;  // includeing '"'s
       cur = new_token(TK_STRING, cur, q, str_len);
       continue;
     }
