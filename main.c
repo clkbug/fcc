@@ -231,7 +231,7 @@ token_t *tokenize(char *p) {
     if (isalpha(*p)) {
       int n = 1;
       while (isalnum(*(p + n)) || *(p + n) == '_') {
-        n++;
+        ++n;
       }
       cur = new_token(TK_IDENT, cur, p, n);
       p = p + n;
@@ -571,7 +571,7 @@ type_and_name_t *parse_type_and_name() {
           if (offset % 4 != 0) {
             offset = offset + 4 - (offset % 4);
           }
-          a->t->struct_type->member_count++;
+          ++a->t->struct_type->member_count;
         }
         // register struct type
         add_type_struct(tok, a->t->struct_type);
@@ -683,7 +683,7 @@ constant_string_t *add_constant_string(token_t *tok) {
   s->next = constant_string;
   s->tok = tok;
   s->id = constant_string_count;
-  constant_string_count++;
+  ++constant_string_count;
   constant_string = s;
   return s;
 }
@@ -1262,7 +1262,7 @@ node_t *parse_stmt() {
     node->kind = NODE_BLOCK;
     for (size_t i = 0; i < MAX_STATEMENTS && !consume("}"); ++i) {
       node->statements[i] = parse_stmt();
-      node->statement_count++;
+      ++node->statement_count;
     }
   } else {
     node = parse_exp(0);
@@ -1492,7 +1492,7 @@ declaration_t *parse_declaration() {
   if (d->func_statements[d->func_statement_count - 1]->kind != NODE_RETURN) {
     d->func_statements[d->func_statement_count] = new_node();
     d->func_statements[d->func_statement_count]->kind = NODE_RETURN;
-    d->func_statement_count++;
+    ++d->func_statement_count;
   }
 
   return d;
@@ -1672,11 +1672,11 @@ void update_indent() {
   indent[4 * depth] = '\0';
 }
 void inc_depth() {
-  depth++;
+  ++depth;
   update_indent();
 }
 void dec_depth() {
-  depth--;
+  --depth;
   update_indent();
 }
 void print_indent() { printf("%s", indent); }
