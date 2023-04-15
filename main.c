@@ -388,7 +388,8 @@ void add_type_struct(token_t *tok, type_struct_t *t) {
 }
 
 size_t get_member_index(type_struct_t *s, token_t *name) {
-  for (size_t i = 0; i < s->member_count; ++i) {
+  size_t i;
+  for (i = 0; i < s->member_count; ++i) {
     if (s->member_names[i]->len == name->len &&
         memcmp(s->member_names[i]->str, name->str, name->len) == 0) {
       return i;
@@ -426,6 +427,7 @@ type_t *new_type_with(type_kind_t tk, type_t *ptr) {
 }
 
 void print_type(type_t *t) {
+  int i;
   if (t->ty == TYPE_VOID) {
     fprintf(stderr, "void");
   } else if (t->ty == TYPE_INT) {
@@ -439,7 +441,7 @@ void print_type(type_t *t) {
     fprintf(stderr, "[%d]", t->n);
     print_type(t->ptr_to);
   } else if (t->ty == TYPE_FUNCTION) {
-    for (int i = 0; i < t->n; ++i) {
+    for (i = 0; i < t->n; ++i) {
       if (0 < i) {
         fprintf(stderr, "->");
       }
@@ -523,6 +525,7 @@ type_and_name_t *parse_type_and_name() {
   type_t *tmp;
   size_t offset = 0;
   type_and_name_t *t;
+  size_t i;
   tok = consume_any_type();
 
   if (!tok) {
@@ -635,7 +638,7 @@ type_and_name_t *parse_type_and_name() {
     a->t = new_type();
     a->t->ret = tmp;
     a->t->ty = TYPE_FUNCTION;
-    for (size_t i = 0; i < MAX_ARGS; ++i) {
+    for (i = 0; i < MAX_ARGS; ++i) {
       if (consume(")")) {
         break;
       }
@@ -970,6 +973,7 @@ node_t *parse_exp(int min_bind_pow) {
   token_t *tok;
   type_t *type;
   type_struct_t *struc;
+  size_t i;
 
   // parse leading operator
   if (consume("-")) {
@@ -1045,7 +1049,7 @@ node_t *parse_exp(int min_bind_pow) {
       // function call
       node->kind = NODE_CALL;
       node->name = tok;
-      for (size_t i = 0; i < MAX_ARGS; ++i) {
+      for (i = 0; i < MAX_ARGS; ++i) {
         if (consume(")")) {
           break;
         }
@@ -1214,6 +1218,7 @@ node_t *parse_exp(int min_bind_pow) {
 }
 
 node_t *parse_stmt() {
+  size_t i;
   node_t *node = new_node();
   type_and_name_t *type_and_name = parse_type_and_name();
 
@@ -1280,7 +1285,7 @@ node_t *parse_stmt() {
     node->clause_then = parse_stmt();
   } else if (consume("{")) {
     node->kind = NODE_BLOCK;
-    for (size_t i = 0; i < MAX_STATEMENTS && !consume("}"); ++i) {
+    for (i = 0; i < MAX_STATEMENTS && !consume("}"); ++i) {
       node->statements[i] = parse_stmt();
       ++node->statement_count;
     }
@@ -1379,7 +1384,7 @@ void add_type(node_t *node) {
     }
     node->type = new_type_with(TYPE_VOID, NULL);
   } else if (node->kind == NODE_BLOCK) {
-    for (size_t i = 0; i < node->statement_count; ++i) {
+    for (i = 0; i < node->statement_count; ++i) {
       add_type(node->statements[i]);
     }
     node->type = new_type_with(TYPE_VOID, NULL);
@@ -1390,7 +1395,7 @@ void add_type(node_t *node) {
       error("type is not set");
     }
   } else if (node->kind == NODE_CALL) {
-    for (int i = 0; i < node->args_count; ++i) {
+    for (i = 0; i < node->args_count; ++i) {
       add_type(node->args[i]);
     }
     node->type = new_type_with(TYPE_VOID, NULL);
@@ -1420,6 +1425,7 @@ void add_type(node_t *node) {
 }
 
 declaration_t *parse_declaration() {
+  size_t i;
   declaration_t *d = new_declaration();
   type_and_name_t *type_and_name;
   token_t *tok;
@@ -1495,12 +1501,12 @@ declaration_t *parse_declaration() {
   d->func_arg_count = type_and_name->t->arg_count;
   d->name = type_and_name->name;
 
-  for (size_t i = 0; i < d->func_arg_count; ++i) {
+  for (i = 0; i < d->func_arg_count; ++i) {
     d->func_arg[i] = type_and_name->t->arg_names[i];
     add_local_variable(d->func_arg[i], type_and_name->t->args[i]);
   }
 
-  for (size_t i = 0; i < MAX_STATEMENTS; ++i) {
+  for (i = 0; i < MAX_STATEMENTS; ++i) {
     if (consume("}")) {
       break;
     }
@@ -1536,6 +1542,7 @@ void print_node_binop(node_t *node, char *op) {
 }
 
 void print_node(node_t *node) {
+  size_t i;
   if (node->ignore) fprintf(stderr, "[ignore]");
   if (node->kind == NODE_MINUS) {
     fprintf(stderr, "(- ");
@@ -1622,14 +1629,14 @@ void print_node(node_t *node) {
     print_node(node->clause_then);
   } else if (node->kind == NODE_BLOCK) {
     fprintf(stderr, "{ ");
-    for (size_t i = 0; i < node->statement_count; ++i) {
+    for (i = 0; i < node->statement_count; ++i) {
       print_node(node->statements[i]);
     }
     fprintf(stderr, "}");
   } else if (node->kind == NODE_CALL) {
     print_str_len(stderr, node->name->str, node->name->len);
     fprintf(stderr, "(");
-    for (size_t i = 0; i < node->args_count; ++i) {
+    for (i = 0; i < node->args_count; ++i) {
       if (0 < i) {
         fprintf(stderr, ", ");
       }
@@ -1656,20 +1663,21 @@ void print_node(node_t *node) {
 }
 
 void print_declaration(declaration_t *dec) {
+  size_t i;
   print_type(dec->type);
   print_str_len(stderr, dec->name->str, dec->name->len);
   if (dec->declaration_type == DECLARATION_GLOBAL_VARIABLE) {
     fprintf(stderr, ";\n");
   } else if (dec->declaration_type == DECLARATION_FUNCTION) {
     fprintf(stderr, "(");
-    for (size_t i = 0; i < dec->func_arg_count; ++i) {
+    for (i = 0; i < dec->func_arg_count; ++i) {
       if (0 < i) {
         fprintf(stderr, ", ");
       }
       print_str_len(stderr, dec->func_arg[i]->str, dec->func_arg[i]->len);
     }
     fprintf(stderr, ") {\n");
-    for (size_t i = 0; i < dec->func_statement_count; ++i) {
+    for (i = 0; i < dec->func_statement_count; ++i) {
       print_node(dec->func_statements[i]);
       fprintf(stderr, ";\n");
     }
@@ -1686,7 +1694,8 @@ char indent[1024];
 int depth;
 
 void update_indent() {
-  for (int i = 0; i < 4 * depth; i = i + 4) {
+  int i;
+  for (i = 0; i < 4 * depth; i = i + 4) {
     indent[i] = indent[i + 1] = indent[i + 2] = indent[i + 3] = ' ';
   }
   indent[4 * depth] = '\0';
@@ -1761,6 +1770,7 @@ void gen_free_stack(local_variable_t *lvar) {
 }
 
 void gen(node_t *node) {
+  int i;
   inc_depth();
   print_node(node);
   fprintf(stderr, "\n");
@@ -2077,17 +2087,17 @@ void gen(node_t *node) {
     printf(".L.loop.end%d: # for end\n", for_index);
     last_loop_label_index = old_loop_label_index;
   } else if (node->kind == NODE_BLOCK) {
-    for (size_t i = 0; i < node->statement_count; ++i) {
+    for (i = 0; i < node->statement_count; ++i) {
       gen(node->statements[i]);
     }
   } else if (node->kind == NODE_CALL) {
     char *name = calloc(node->name->len + 1, 1);
     memcpy(name, node->name->str, node->name->len);
 
-    for (int i = 0; i < node->args_count; ++i) {
+    for (i = 0; i < node->args_count; ++i) {
       gen(node->args[node->args_count - 1 - i]);
     }
-    for (int i = 0; i < node->args_count; ++i) {
+    for (i = 0; i < node->args_count; ++i) {
       char s[3] = "a0";
       s[1] = 48 + i;
       gen_pop(s);
@@ -2126,6 +2136,7 @@ void gen(node_t *node) {
 }
 
 void print_func_prologue(declaration_t *dec) {
+  size_t i;
   printf("  .text\n");
   printf("  .align 4\n");
   printf("  .globl    ");
@@ -2142,7 +2153,7 @@ void print_func_prologue(declaration_t *dec) {
   printf("%smv   fp, sp\n", indent);  // update fp
 
   // push arguments
-  for (size_t i = 0; i < dec->func_arg_count; ++i) {
+  for (i = 0; i < dec->func_arg_count; ++i) {
     char reg[] = "a0";
     local_variable_t *var = find_local_variable(dec->func_arg[i]);
     reg[1] = reg[1] + i;
@@ -2154,6 +2165,7 @@ void print_func_prologue(declaration_t *dec) {
 void print_func_epilogue(declaration_t *dec) {}
 
 void gen_declaration(declaration_t *dec) {
+  size_t i;
   depth = 1;
   if (dec->declaration_type == DECLARATION_GLOBAL_VARIABLE) {
     printf("  .globl  ");
@@ -2184,7 +2196,7 @@ void gen_declaration(declaration_t *dec) {
   } else if (dec->declaration_type == DECLARATION_FUNCTION) {
     update_indent();
     print_func_prologue(dec);
-    for (size_t i = 0; i < dec->func_statement_count; ++i) {
+    for (i = 0; i < dec->func_statement_count; ++i) {
       gen(dec->func_statements[i]);
     }
     print_func_epilogue(dec);
