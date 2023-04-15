@@ -441,6 +441,8 @@ void print_type(type_t *t) {
     print_type(t->ret);
   } else if (t->ty == TYPE_INVALID) {
     error("tried to print TYPE_INVALID!");
+  } else if (t->ty == TYPE_STRUCT) {
+    fprintf(stderr, "struct xxx");
   } else {
     error("tried to print %d!", t->ty);
   }
