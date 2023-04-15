@@ -353,7 +353,7 @@ type_kind_t TYPE_FUNCTION = 6;
 type_kind_t TYPE_STRUCT = 7;
 
 #define MAX_ARGS 8
-#define MAX_STRUCT_MEMBERS 8
+#define MAX_STRUCT_MEMBERS 32
 
 struct type_struct_t {
   token_t *name;
@@ -540,7 +540,7 @@ type_and_name_t *parse_type_and_name() {
   } else if (tok->kind == TK_TYPE_VOID) {
     a->t = new_type();
     a->t->ty = TYPE_VOID;
-  } else if (compare_token(tok, "struct", 6)) {
+  } else if (tok->kind == TK_STRUCT) {
     tok = consume_ident();
     a->t = new_type();
     a->t->ty = TYPE_STRUCT;
