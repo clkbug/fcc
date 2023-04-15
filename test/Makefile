@@ -38,6 +38,7 @@ SRCS := \
 	string_double_quote.c \
 	sizeof.c \
 	struct_recursive_inc.c \
+	binary_tree.c \
 	# post_increment.c 	\
 
 
