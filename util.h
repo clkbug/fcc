@@ -8,6 +8,12 @@ void error(char *fmt, ...) {
   exit(1);
 }
 
+void eprintf(char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  fprintf(stderr, fmt, ap);
+}
+
 char *read_file(char *path) {
   FILE *fp = fopen(path, "r");
   if (!fp) error("cannot open %s: %s", path, strerror(errno));

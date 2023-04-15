@@ -429,30 +429,30 @@ type_t *new_type_with(type_kind_t tk, type_t *ptr) {
 void print_type(type_t *t) {
   int i;
   if (t->ty == TYPE_VOID) {
-    fprintf(stderr, "void");
+    eprintf("void");
   } else if (t->ty == TYPE_INT) {
-    fprintf(stderr, "int");
+    eprintf("int");
   } else if (t->ty == TYPE_CHAR) {
-    fprintf(stderr, "char");
+    eprintf("char");
   } else if (t->ty == TYPE_POINTER) {
-    fprintf(stderr, "*");
+    eprintf("*");
     print_type(t->ptr_to);
   } else if (t->ty == TYPE_ARRAY) {
-    fprintf(stderr, "[%d]", t->n);
+    eprintf("[%d]", t->n);
     print_type(t->ptr_to);
   } else if (t->ty == TYPE_FUNCTION) {
     for (i = 0; i < t->n; ++i) {
       if (0 < i) {
-        fprintf(stderr, "->");
+        eprintf("->");
       }
       print_type(t->args[i]);
     }
-    fprintf(stderr, "->");
+    eprintf("->");
     print_type(t->ret);
   } else if (t->ty == TYPE_INVALID) {
     error("tried to print TYPE_INVALID!");
   } else if (t->ty == TYPE_STRUCT) {
-    fprintf(stderr, "struct xxx");
+    eprintf("struct xxx");
   } else {
     error("tried to print %d!", t->ty);
   }
@@ -1534,22 +1534,22 @@ void print_str_len(FILE *fp, char *str, size_t len) {
 void print_node(node_t *node);
 
 void print_node_binop(node_t *node, char *op) {
-  fprintf(stderr, "(%s ", op);
+  eprintf("(%s ", op);
   print_node(node->lhs);
-  fprintf(stderr, " ");
+  eprintf(" ");
   print_node(node->rhs);
-  fprintf(stderr, ")");
+  eprintf(")");
 }
 
 void print_node(node_t *node) {
   size_t i;
   if (node->ignore) {
-    fprintf(stderr, "[ignore]");
+    eprintf("[ignore]");
   }
   if (node->kind == NODE_MINUS) {
-    fprintf(stderr, "(- ");
+    eprintf("(- ");
     print_node(node->rhs);
-    fprintf(stderr, ")");
+    eprintf(")");
   } else if (node->kind == NODE_ADD) {
     print_node_binop(node, "+");
   } else if (node->kind == NODE_SUB) {
@@ -1587,7 +1587,7 @@ void print_node(node_t *node) {
   } else if (node->kind == NODE_ARROW) {
     print_node_binop(node, "->");
   } else if (node->kind == NODE_NUM) {
-    fprintf(stderr, "%d", node->val);
+    eprintf("%d", node->val);
   } else if (node->kind == NODE_CONST_STRING) {
     print_str_len(stderr, node->const_str->tok->str, node->const_str->tok->len);
   } else if (node->kind == NODE_LOCAL_VARIABLE ||
@@ -1597,69 +1597,69 @@ void print_node(node_t *node) {
   } else if (node->kind == NODE_ASSIGN) {
     print_node_binop(node, "=");
   } else if (node->kind == NODE_RETURN) {
-    fprintf(stderr, "return ");
+    eprintf("return ");
     if (node->rhs) {
       print_node(node->rhs);
     }
-    fprintf(stderr, ";");
+    eprintf(";");
   } else if (node->kind == NODE_BREAK) {
-    fprintf(stderr, "break;");
+    eprintf("break;");
   } else if (node->kind == NODE_CONTINUE) {
-    fprintf(stderr, "continue;");
+    eprintf("continue;");
   } else if (node->kind == NODE_IF) {
-    fprintf(stderr, "if (");
+    eprintf("if (");
     print_node(node->cond);
-    fprintf(stderr, ") ");
+    eprintf(") ");
     print_node(node->clause_then);
     if (node->clause_else) {
-      fprintf(stderr, " else ");
+      eprintf(" else ");
       print_node(node->clause_else);
     }
   } else if (node->kind == NODE_WHILE) {
-    fprintf(stderr, "while (");
+    eprintf("while (");
     print_node(node->cond);
-    fprintf(stderr, ") ");
+    eprintf(") ");
     print_node(node->clause_then);
   } else if (node->kind == NODE_FOR) {
-    fprintf(stderr, "for (");
+    eprintf("for (");
     if (node->init) print_node(node->init);
-    fprintf(stderr, "; ");
+    eprintf("; ");
     if (node->cond) print_node(node->cond);
-    fprintf(stderr, "; ");
+    eprintf("; ");
     if (node->next) print_node(node->next);
-    fprintf(stderr, ") ");
+    eprintf(") ");
     print_node(node->clause_then);
   } else if (node->kind == NODE_BLOCK) {
-    fprintf(stderr, "{ ");
+    eprintf("{ ");
     for (i = 0; i < node->statement_count; ++i) {
       print_node(node->statements[i]);
     }
-    fprintf(stderr, "}");
+    eprintf("}");
   } else if (node->kind == NODE_CALL) {
     print_str_len(stderr, node->name->str, node->name->len);
-    fprintf(stderr, "(");
+    eprintf("(");
     for (i = 0; i < node->args_count; ++i) {
       if (0 < i) {
-        fprintf(stderr, ", ");
+        eprintf(", ");
       }
       print_node(node->args[i]);
     }
-    fprintf(stderr, ")");
+    eprintf(")");
   } else if (node->kind == NODE_ADDR) {
-    fprintf(stderr, "&");
+    eprintf("&");
     print_node(node->rhs);
   } else if (node->kind == NODE_DEREF) {
-    fprintf(stderr, "*");
+    eprintf("*");
     print_node(node->rhs);
   } else if (node->kind == NODE_LOGICAL_NOT) {
-    fprintf(stderr, "!");
+    eprintf("!");
     print_node(node->rhs);
   } else if (node->kind == NODE_VAR_DEC) {
-    fprintf(stderr, "int ");
+    eprintf("int ");
     print_str_len(stderr, node->name->str, node->name->len);
-    fprintf(stderr, ";\n");
+    eprintf(";\n");
   } else {
-    fprintf(stderr, "unimplemented printer: %d\n", node->kind);
+    eprintf("unimplemented printer: %d\n", node->kind);
     assert(!"unimplemented printer");
   }
 }
@@ -1669,24 +1669,24 @@ void print_declaration(declaration_t *dec) {
   print_type(dec->type);
   print_str_len(stderr, dec->name->str, dec->name->len);
   if (dec->declaration_type == DECLARATION_GLOBAL_VARIABLE) {
-    fprintf(stderr, ";\n");
+    eprintf(";\n");
   } else if (dec->declaration_type == DECLARATION_FUNCTION) {
-    fprintf(stderr, "(");
+    eprintf("(");
     for (i = 0; i < dec->func_arg_count; ++i) {
       if (0 < i) {
-        fprintf(stderr, ", ");
+        eprintf(", ");
       }
       print_str_len(stderr, dec->func_arg[i]->str, dec->func_arg[i]->len);
     }
-    fprintf(stderr, ") {\n");
+    eprintf(") {\n");
     for (i = 0; i < dec->func_statement_count; ++i) {
       print_node(dec->func_statements[i]);
-      fprintf(stderr, ";\n");
+      eprintf(";\n");
     }
-    fprintf(stderr, "}\n");
+    eprintf("}\n");
   } else if (dec->declaration_type == DECLARATION_TYPEDEF) {
     print_str_len(stderr, dec->name->str, dec->name->len);
-    fprintf(stderr, "\n");
+    eprintf("\n");
   } else {
     error("failed to print declaration! type: %d", dec->declaration_type);
   }
@@ -1770,7 +1770,7 @@ void gen(node_t *node) {
   int i;
   inc_depth();
   print_node(node);
-  fprintf(stderr, "\n");
+  eprintf("\n");
 
   if (node->kind == NODE_NUM) {
     printf("%sli t0, %d\n", indent, node->val);
@@ -2149,7 +2149,7 @@ void print_func_prologue(declaration_t *dec) {
     char reg[] = "a0";
     local_variable_t *var = find_local_variable(dec->func_arg[i]);
     reg[1] = reg[1] + i;
-    fprintf(stderr, "push arg %s\n", reg);
+    eprintf("push arg %s\n", reg);
     printf("%ssw %s, %d(fp)\n", indent, reg, var->offset);
   }
 }
