@@ -1792,8 +1792,8 @@ void gen(node_t *node) {
       gen_push("t0");
       break;
     case NODE_CONST_STRING:
-      printf("%slui t0, %%hi(.LC%zd)\n", indent, node->const_str->id);
-      printf("%saddi t0, t0, %%lo(.LC%zd)\n", indent, node->const_str->id);
+      printf("%slui t0, %%hi(.L.C%zd)\n", indent, node->const_str->id);
+      printf("%saddi t0, t0, %%lo(.L.C%zd)\n", indent, node->const_str->id);
       gen_push("t0");
       break;
     case NODE_MINUS:
@@ -2071,36 +2071,36 @@ void gen(node_t *node) {
       printf("%sret\n", indent);
       break;
     case NODE_BREAK:
-      printf("%sj .Lloop_end%d\n", indent, last_loop_label_index);
+      printf("%sj .L.loop.end%d\n", indent, last_loop_label_index);
       break;
     case NODE_CONTINUE:
-      printf("%sj .Lloop_next%d\n", indent, last_loop_label_index);
+      printf("%sj .L.loop.next%d\n", indent, last_loop_label_index);
       break;
     case NODE_IF:
       gen(node->cond);
       gen_pop("t0");
       int if_index = gen_label_index();
-      printf("%sbeqz t0, .Lelse%d\n", indent, if_index);
+      printf("%sbeqz t0, .L.else%d\n", indent, if_index);
       gen(node->clause_then);
-      printf("%sj .Lifend%d\n", indent, if_index);
-      printf(".Lelse%d:\n", if_index);
+      printf("%sj .L.if.end%d\n", indent, if_index);
+      printf(".L.else%d:\n", if_index);
       if (node->clause_else) {
         gen(node->clause_else);
       }
-      printf(".Lifend%d:\n", if_index);
+      printf(".L.if.end%d:\n", if_index);
       break;
     case NODE_WHILE: {
       int old_loop_label_index = last_loop_label_index;
       int while_index = gen_loop_label_index();
-      printf(".Lloop_cond%d: # while loop start\n", while_index);
+      printf(".L.loop.cond%d: # while loop start\n", while_index);
       gen(node->cond);
       gen_pop("t0");
-      printf("%sbeqz t0, .Lloop_end%d\n", indent, while_index);
+      printf("%sbeqz t0, .L.loop.end%d\n", indent, while_index);
       gen(node->clause_then);
-      printf(".Lloop_next%d: # while loop next (empty)\n",
+      printf(".L.loop.next%d: # while loop next (empty)\n",
              while_index);  // empty, but needed for break/continue
-      printf("%sj .Lloop_cond%d\n", indent, while_index);
-      printf(".Lloop_end%d: # while loop end\n", while_index);
+      printf("%sj .L.loop.cond%d\n", indent, while_index);
+      printf(".L.loop.end%d: # while loop end\n", while_index);
       last_loop_label_index = old_loop_label_index;
       break;
     }
@@ -2114,23 +2114,23 @@ void gen(node_t *node) {
       } else {
         printf("%s# for init: empty\n", indent);
       }
-      printf(".Lloop_cond%d: # for cond\n", for_index);
+      printf(".L.loop.cond%d: # for cond\n", for_index);
       if (node->cond) {
         printf("%s# for cond\n", indent);
         gen(node->cond);
         gen_pop("t0");
-        printf("%sbeqz t0, .Lloop_end%d\n", indent, for_index);
+        printf("%sbeqz t0, .L.loop.end%d\n", indent, for_index);
       } else {
         printf("%s# for cond: empty\n", indent);
       }
       printf("%s# for body\n", indent);
       gen(node->clause_then);
-      printf(".Lloop_next%d: # for next\n", for_index);
+      printf(".L.loop.next%d: # for next\n", for_index);
       if (node->next) {
         gen(node->next);
       }
-      printf("%sj .Lloop_cond%d\n", indent, for_index);
-      printf(".Lloop_end%d: # for end\n", for_index);
+      printf("%sj .L.loop.cond%d\n", indent, for_index);
+      printf(".L.loop.end%d: # for end\n", for_index);
       last_loop_label_index = old_loop_label_index;
       break;
     }
@@ -2237,7 +2237,7 @@ void gen_declaration(declaration_t *dec) {
       print_str_len(stdout, dec->name->str, dec->name->len);
       printf(":\n");
       if (dec->constant_string) {
-        printf("  .word .LC%zd", dec->constant_string->id);
+        printf("  .word .L.C%zd", dec->constant_string->id);
       } else {
         printf("  .zero %zd\n", calc_size_of_type(dec->type));
       }
@@ -2272,7 +2272,7 @@ void print_constant_strings() {
   while (cur) {
     printf("  .section .rodata\n");
     printf("  .balign  4\n");
-    printf(".LC%zd:\n", cur->id);
+    printf(".L.C%zd:\n", cur->id);
     printf("  .string ");
     print_str_len(stdout, cur->tok->str, cur->tok->len);
     printf("\n");
