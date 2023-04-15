@@ -227,7 +227,8 @@ token_t *tokenize(char *p) {
     if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '%' ||
         *p == '>' || *p == '<' || *p == '(' || *p == ')' || *p == '[' ||
         *p == ']' || *p == '=' || *p == ';' || *p == '{' || *p == '}' ||
-        *p == ',' || *p == '&' || *p == '.') {
+        *p == ',' || *p == '&' || *p == '.' || *p == '|' || *p == '!' ||
+        *p == '^') {
       cur = new_token(TK_RESERVED, cur, p, 1);
       p++;
       continue;
@@ -711,6 +712,11 @@ typedef enum {
   NODE_GE,
   NODE_LOGICAL_AND,
   NODE_LOGICAL_OR,
+  NODE_LOGICAL_NOT,
+  NODE_BITWISE_AND,
+  NODE_BITWISE_OR,
+  // NODE_BITWISE_NOT, // not implemented yet
+  NODE_BITWISE_XOR,
   NODE_NUM,
   NODE_CONST_STRING,
   NODE_ASSIGN,
@@ -916,6 +922,12 @@ const int COMPARE_LEFT_BINDING_POWER = 100;
 const int COMPARE_RIGHT_BINDING_POWER = 101;
 const int EQ_LEFT_BINDING_POWER = 90;
 const int EQ_RIGHT_BINDING_POWER = 91;
+const int BITWISE_AND_LEFT_BINDING_POWER = 80;
+const int BITWISE_AND_RIGHT_BINDING_POWER = 81;
+const int BITWISE_XOR_LEFT_BINDING_POWER = 70;
+const int BITWISE_XOR_RIGHT_BINDING_POWER = 71;
+const int BITWISE_OR_LEFT_BINDING_POWER = 60;
+const int BITWISE_OR_RIGHT_BINDING_POWER = 61;
 
 const int LOGICAL_AND_LEFT_BINDING_POWER = 50;
 const int LOGICAL_AND_RIGHT_BINDING_POWER = 51;
@@ -1081,6 +1093,24 @@ node_t *parse_exp(int min_bind_pow) {
         return node;
       }
       node = parse_follower(node, "!=", EQ_RIGHT_BINDING_POWER, NODE_NEQ);
+    } else if (peek("&")) {
+      if (BITWISE_AND_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      node = parse_follower(node, "&", BITWISE_AND_RIGHT_BINDING_POWER,
+                            NODE_BITWISE_AND);
+    } else if (peek("^")) {
+      if (BITWISE_XOR_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      node = parse_follower(node, "^", BITWISE_XOR_RIGHT_BINDING_POWER,
+                            NODE_BITWISE_XOR);
+    } else if (peek("|")) {
+      if (BITWISE_OR_LEFT_BINDING_POWER <= min_bind_pow) {
+        return node;
+      }
+      node = parse_follower(node, "|", BITWISE_OR_RIGHT_BINDING_POWER,
+                            NODE_BITWISE_OR);
     } else if (peek("&&")) {
       if (LOGICAL_AND_LEFT_BINDING_POWER <= min_bind_pow) {
         return node;
@@ -1257,6 +1287,9 @@ void add_type(node_t *node) {
     case NODE_ASSIGN:
     case NODE_LOGICAL_AND:
     case NODE_LOGICAL_OR:
+    case NODE_BITWISE_AND:
+    case NODE_BITWISE_OR:
+    case NODE_BITWISE_XOR:
       add_type(node->lhs);
       add_type(node->rhs);
       node->type = node->lhs->type;
@@ -1518,6 +1551,15 @@ void print_node(node_t *node) {
       break;
     case NODE_NEQ:
       print_node_binop(node, "!=");
+      break;
+    case NODE_BITWISE_AND:
+      print_node_binop(node, "&");
+      break;
+    case NODE_BITWISE_OR:
+      print_node_binop(node, "|");
+      break;
+    case NODE_BITWISE_XOR:
+      print_node_binop(node, "^");
       break;
     case NODE_DOT:
       print_node_binop(node, ".");
@@ -1890,6 +1932,30 @@ void gen(node_t *node) {
       gen_pop("t1");
       printf("%ssub t0, t1, t0\n", indent);
       printf("%ssnez t0, t0\n", indent);
+      gen_push("t0");
+      break;
+    case NODE_BITWISE_AND:
+      gen(node->lhs);
+      gen(node->rhs);
+      gen_pop("t0");  // rhs
+      gen_pop("t1");  // lhs
+      printf("%sand t0, t1, t0\n", indent);
+      gen_push("t0");
+      break;
+    case NODE_BITWISE_XOR:
+      gen(node->lhs);
+      gen(node->rhs);
+      gen_pop("t0");  // rhs
+      gen_pop("t1");  // lhs
+      printf("%sxor t0, t1, t0\n", indent);
+      gen_push("t0");
+      break;
+    case NODE_BITWISE_OR:
+      gen(node->lhs);
+      gen(node->rhs);
+      gen_pop("t0");  // rhs
+      gen_pop("t1");  // lhs
+      printf("%sor t0, t1, t0\n", indent);
       gen_push("t0");
       break;
     case NODE_LOCAL_VARIABLE:

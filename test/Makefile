@@ -33,6 +33,7 @@ SRCS := \
 	string_putchar.c \
 	string_null.c \
 	calculator_stack.c \
+	bitwiseop.c \
 	# post_increment.c 	\
 
 
