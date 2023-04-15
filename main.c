@@ -617,7 +617,9 @@ type_and_name_t *parse_type_and_name() {
     // struct variable (may be function definition)
   } else {
     a->t = find_type_alias(tok);
-    if (!a->t) return NULL;
+    if (!a->t) {
+      return NULL;
+    }
     consume_ident();
   }
 
@@ -668,7 +670,9 @@ type_and_name_t *parse_type_and_name() {
           a->t->args[i]->ty = TYPE_VOID;
         } else {
           a->t->args[i] = find_type_alias(tok);
-          if (!a->t) return NULL;
+          if (!a->t) {
+            return NULL;
+          }
         }
       }
 
