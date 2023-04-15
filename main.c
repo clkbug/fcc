@@ -1589,11 +1589,11 @@ void print_node(node_t *node) {
   } else if (node->kind == NODE_NUM) {
     eprintf("%d", node->val);
   } else if (node->kind == NODE_CONST_STRING) {
-    print_str_len(stderr, node->const_str->tok->str, node->const_str->tok->len);
+    eprintf("%.*s", node->const_str->tok->len, node->const_str->tok->str);
   } else if (node->kind == NODE_LOCAL_VARIABLE ||
              node->kind == NODE_GLOBAL_VARIABLE ||
              node->kind == NODE_STRUCT_MEMBER) {
-    print_str_len(stderr, node->name->str, node->name->len);
+    eprintf("%.*s", node->name->len, node->name->str);
   } else if (node->kind == NODE_ASSIGN) {
     print_node_binop(node, "=");
   } else if (node->kind == NODE_RETURN) {
@@ -1636,7 +1636,7 @@ void print_node(node_t *node) {
     }
     eprintf("}");
   } else if (node->kind == NODE_CALL) {
-    print_str_len(stderr, node->name->str, node->name->len);
+    eprintf("%.*s", node->name->len, node->name->str);
     eprintf("(");
     for (i = 0; i < node->args_count; ++i) {
       if (0 < i) {
@@ -1656,7 +1656,7 @@ void print_node(node_t *node) {
     print_node(node->rhs);
   } else if (node->kind == NODE_VAR_DEC) {
     eprintf("int ");
-    print_str_len(stderr, node->name->str, node->name->len);
+    eprintf("%.*s", node->name->len, node->name->str);
     eprintf(";\n");
   } else {
     eprintf("unimplemented printer: %d\n", node->kind);
@@ -1667,7 +1667,7 @@ void print_node(node_t *node) {
 void print_declaration(declaration_t *dec) {
   size_t i;
   print_type(dec->type);
-  print_str_len(stderr, dec->name->str, dec->name->len);
+  eprintf("%.*s", dec->name->len, dec->name->str);
   if (dec->declaration_type == DECLARATION_GLOBAL_VARIABLE) {
     eprintf(";\n");
   } else if (dec->declaration_type == DECLARATION_FUNCTION) {
@@ -1676,7 +1676,7 @@ void print_declaration(declaration_t *dec) {
       if (0 < i) {
         eprintf(", ");
       }
-      print_str_len(stderr, dec->func_arg[i]->str, dec->func_arg[i]->len);
+      eprintf("%.*s", dec->func_arg[i]->len, dec->func_arg[i]->str);
     }
     eprintf(") {\n");
     for (i = 0; i < dec->func_statement_count; ++i) {
@@ -1685,8 +1685,7 @@ void print_declaration(declaration_t *dec) {
     }
     eprintf("}\n");
   } else if (dec->declaration_type == DECLARATION_TYPEDEF) {
-    print_str_len(stderr, dec->name->str, dec->name->len);
-    eprintf("\n");
+    eprintf("%.*s\n", dec->name->len, dec->name->str);
   } else {
     error("failed to print declaration! type: %d", dec->declaration_type);
   }
