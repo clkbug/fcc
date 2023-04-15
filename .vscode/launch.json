@@ -10,11 +10,10 @@
             "request": "launch",
             "program": "${workspaceFolder}/fcc",
             "args": [
-                // "int main() {return 0;}"
-                "int a; int main() {return 0;}"
-                // "main() {int a; int b; return a + b;}"
-                // "main () {int a; int b; int c; int d; a = 111; b = &a; c = &b; d = &c; return ***d; }"
-                // "int main() { char c; c = 'a'; return c; }",
+                // "test/binary_tree.c",
+                // "main.c"
+                // "main2.c"
+                "/tmp/main.c"
             ],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "make"
