@@ -1543,7 +1543,9 @@ void print_node_binop(node_t *node, char *op) {
 
 void print_node(node_t *node) {
   size_t i;
-  if (node->ignore) fprintf(stderr, "[ignore]");
+  if (node->ignore) {
+    fprintf(stderr, "[ignore]");
+  }
   if (node->kind == NODE_MINUS) {
     fprintf(stderr, "(- ");
     print_node(node->rhs);
