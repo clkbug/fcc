@@ -287,6 +287,9 @@ token_t *tokenize(char *p) {
           case '\\':
             cur->num = '\\';
             break;
+          case '\'':
+            cur->num = '\'';
+            break;
           default:
             error("failed to tokenize at '%c'\n'\\?...", *p);
         }
@@ -406,41 +409,41 @@ type_t *new_type_with(type_kind_t tk, type_t *ptr) {
 }
 
 void print_type(type_t *t) {
-  switch (t->ty) {
-    case TYPE_VOID:
-      fprintf(stderr, "void");
-      break;
-    case TYPE_INT:
-      fprintf(stderr, "int");
-      break;
-    case TYPE_CHAR:
-      fprintf(stderr, "char");
-      break;
-    case TYPE_POINTER:
-      fprintf(stderr, "*");
-      print_type(t->ptr_to);
-      break;
-    case TYPE_ARRAY:
-      fprintf(stderr, "[%d]", t->n);
-      print_type(t->ptr_to);
-      break;
-    case TYPE_INVALID:
-      error("tried to print TYPE_INVALID!");
-      break;
-    case TYPE_FUNCTION:
-      for (int i = 0; i < t->n; i++) {
-        if (0 < i) {
-          fprintf(stderr, "->");
-        }
-        print_type(t->args[i]);
-      }
-      fprintf(stderr, "->");
-      print_type(t->ret);
-      break;
-    default:
-      error("tried to print %d!", t->ty);
-      break;
-  }
+  // switch (t->ty) {
+  //   case TYPE_VOID:
+  //     fprintf(stderr, "void");
+  //     break;
+  //   case TYPE_INT:
+  //     fprintf(stderr, "int");
+  //     break;
+  //   case TYPE_CHAR:
+  //     fprintf(stderr, "char");
+  //     break;
+  //   case TYPE_POINTER:
+  //     fprintf(stderr, "*");
+  //     print_type(t->ptr_to);
+  //     break;
+  //   case TYPE_ARRAY:
+  //     fprintf(stderr, "[%d]", t->n);
+  //     print_type(t->ptr_to);
+  //     break;
+  //   case TYPE_INVALID:
+  //     error("tried to print TYPE_INVALID!");
+  //     break;
+  //   case TYPE_FUNCTION:
+  //     for (int i = 0; i < t->n; i++) {
+  //       if (0 < i) {
+  //         fprintf(stderr, "->");
+  //       }
+  //       print_type(t->args[i]);
+  //     }
+  //     fprintf(stderr, "->");
+  //     print_type(t->ret);
+  //     break;
+  //   default:
+  //     error("tried to print %d!", t->ty);
+  //     break;
+  // }
 }
 
 size_t calc_size_of_type(type_t *t) {
@@ -1240,145 +1243,118 @@ node_t *parse_stmt() {
 
 void add_type(node_t *node) {
   size_t i;
-  switch (node->kind) {
-    case NODE_NUM:
-      node->type = new_type_with(TYPE_INT, NULL);
-      break;
-    case NODE_CONST_STRING:
-      node->type = new_type_with(TYPE_POINTER, new_type_with(TYPE_CHAR, NULL));
-      break;
-    case NODE_MINUS:
-      add_type(node->rhs);
-      node->type = node->rhs->type;
-      break;
-    case NODE_ADD:
-    case NODE_SUB:
-      add_type(node->lhs);
-      add_type(node->rhs);
-      if (node->lhs->type->ty == TYPE_POINTER) {
-        node->type = node->lhs->type;
-      } else if (node->rhs->type->ty == TYPE_POINTER) {
-        node->type = node->rhs->type;
-      } else {
-        node->type = node->lhs->type;
-      }
-      break;
-    case NODE_MUL:
-    case NODE_DIV:
-    case NODE_MOD:
-    case NODE_LT:
-    case NODE_LE:
-    case NODE_GT:
-    case NODE_GE:
-    case NODE_EQ:
-    case NODE_NEQ:
-    case NODE_ASSIGN:
-    case NODE_LOGICAL_AND:
-    case NODE_LOGICAL_OR:
-    case NODE_BITWISE_AND:
-    case NODE_BITWISE_OR:
-    case NODE_BITWISE_XOR:
-      add_type(node->lhs);
-      add_type(node->rhs);
+
+  if (node->kind == NODE_NUM) {
+    node->type = new_type_with(TYPE_INT, NULL);
+  } else if (node->kind == NODE_CONST_STRING) {
+    node->type = new_type_with(TYPE_POINTER, new_type_with(TYPE_CHAR, NULL));
+  } else if (node->kind == NODE_MINUS) {
+    add_type(node->rhs);
+    node->type = node->rhs->type;
+  } else if (node->kind == NODE_ADD || node->kind == NODE_SUB) {
+    add_type(node->lhs);
+    add_type(node->rhs);
+    if (node->lhs->type->ty == TYPE_POINTER) {
       node->type = node->lhs->type;
-      break;
-    case NODE_DOT:
+    } else if (node->rhs->type->ty == TYPE_POINTER) {
+      node->type = node->rhs->type;
+    } else {
+      node->type = node->lhs->type;
+    }
+  } else if (node->kind == NODE_MUL || node->kind == NODE_DIV ||
+             node->kind == NODE_MOD || node->kind == NODE_LT ||
+             node->kind == NODE_LE || node->kind == NODE_GT ||
+             node->kind == NODE_GE || node->kind == NODE_EQ ||
+             node->kind == NODE_NEQ || node->kind == NODE_ASSIGN ||
+             node->kind == NODE_LOGICAL_AND || node->kind == NODE_LOGICAL_OR ||
+             node->kind == NODE_BITWISE_AND || node->kind == NODE_BITWISE_OR ||
+             node->kind == NODE_BITWISE_XOR) {
+    add_type(node->lhs);
+    add_type(node->rhs);
+    node->type = node->lhs->type;
+  } else if (node->kind == NODE_DOT) {
+    add_type(node->lhs);
+    assert(node->lhs->type->ty == TYPE_STRUCT);
+    // assert(node->rhs->kind == NODE_STRUCT_MEMBER);
+    i = get_member_index(node->lhs->type->struct_type, node->rhs->name);
+    node->rhs->kind = NODE_STRUCT_MEMBER;
+    node->rhs->offset = node->lhs->type->struct_type->member_offsets[i];
+    node->rhs->type = node->lhs->type->struct_type->member_types[i];
+    node->type = node->rhs->type;
+  } else if (node->kind == NODE_ARROW) {
+    add_type(node->lhs);
+    assert(node->lhs->type->ty == TYPE_POINTER);
+    assert(node->lhs->type->ptr_to->ty == TYPE_STRUCT);
+    // assert(node->rhs->kind == NODE_STRUCT_MEMBER);
+    i = get_member_index(node->lhs->type->ptr_to->struct_type, node->rhs->name);
+    node->rhs->kind = NODE_STRUCT_MEMBER;
+    node->rhs->offset = node->lhs->type->ptr_to->struct_type->member_offsets[i];
+    node->rhs->type = node->lhs->type->ptr_to->struct_type->member_types[i];
+    node->type = node->rhs->type;
+  } else if (node->kind == NODE_RETURN) {
+    if (node->rhs) {
+      add_type(node->rhs);
+    }
+    node->type = new_type_with(TYPE_VOID, NULL);
+  } else if (node->kind == NODE_BREAK || node->kind == NODE_CONTINUE) {
+    node->type = new_type_with(TYPE_VOID, NULL);
+  } else if (node->kind == NODE_IF || node->kind == NODE_WHILE ||
+             node->kind == NODE_FOR) {
+    if (node->init) {
+      add_type(node->init);  // only for NODE_FOR
+    }
+    if (node->cond) {
+      add_type(node->cond);
+    }
+    if (node->clause_then) {
+      add_type(node->clause_then);
+    }
+    if (node->clause_else) {
+      add_type(node->clause_else);  // only for NODE_IF
+    }
+    if (node->next) {
+      add_type(node->next);
+    }
+    node->type = new_type_with(TYPE_VOID, NULL);
+  } else if (node->kind == NODE_BLOCK) {
+    for (size_t i = 0; i < node->statement_count; i++) {
+      add_type(node->statements[i]);
+    }
+    node->type = new_type_with(TYPE_VOID, NULL);
+  } else if (node->kind == NODE_LOCAL_VARIABLE ||
+             node->kind == NODE_GLOBAL_VARIABLE) {
+    // typed in parsing
+    if (node->type == NULL) {
+      error("type is not set");
+    }
+  } else if (node->kind == NODE_CALL) {
+    for (int i = 0; i < node->args_count; i++) {
+      add_type(node->args[i]);
+    }
+    node->type = new_type_with(TYPE_VOID, NULL);
+  } else if (node->kind == NODE_ADDR) {
+    add_type(node->rhs);
+    node->type = new_type_with(TYPE_POINTER, node->rhs->type);
+  } else if (node->kind == NODE_DEREF) {
+    add_type(node->rhs);
+    node->type = node->rhs->type->ptr_to;
+  } else if (node->kind == NODE_LOGICAL_NOT) {
+    add_type(node->rhs);
+    node->type = node->rhs->type;
+  } else if (node->kind == NODE_VAR_DEC) {
+    assert((node->lhs && node->rhs) || (!node->lhs && !node->rhs));
+    if (node->lhs) {
       add_type(node->lhs);
-      assert(node->lhs->type->ty == TYPE_STRUCT);
-      // assert(node->rhs->kind == NODE_STRUCT_MEMBER);
-      i = get_member_index(node->lhs->type->struct_type, node->rhs->name);
-      node->rhs->kind = NODE_STRUCT_MEMBER;
-      node->rhs->offset = node->lhs->type->struct_type->member_offsets[i];
-      node->rhs->type = node->lhs->type->struct_type->member_types[i];
-      node->type = node->rhs->type;
-      break;
-    case NODE_ARROW:
-      add_type(node->lhs);
-      assert(node->lhs->type->ty == TYPE_POINTER);
-      assert(node->lhs->type->ptr_to->ty == TYPE_STRUCT);
-      // assert(node->rhs->kind == NODE_STRUCT_MEMBER);
-      i = get_member_index(node->lhs->type->ptr_to->struct_type,
-                           node->rhs->name);
-      node->rhs->kind = NODE_STRUCT_MEMBER;
-      node->rhs->offset =
-          node->lhs->type->ptr_to->struct_type->member_offsets[i];
-      node->rhs->type = node->lhs->type->ptr_to->struct_type->member_types[i];
-      node->type = node->rhs->type;
-      break;
-    case NODE_RETURN:
-      if (node->rhs) {
-        add_type(node->rhs);
+      node->type = node->lhs->type;
+      if (!node->rhs) {
+        error("node->lhs is not NULL but node->rhs is NULL");
       }
-      node->type = new_type_with(TYPE_VOID, NULL);
-      break;
-    case NODE_BREAK:
-    case NODE_CONTINUE:
-      node->type = new_type_with(TYPE_VOID, NULL);
-      break;
-    case NODE_IF:
-    case NODE_WHILE:
-    case NODE_FOR:
-      if (node->init) {
-        add_type(node->init);  // only for NODE_FOR
-      }
-      if (node->cond) {
-        add_type(node->cond);
-      }
-      if (node->clause_then) {
-        add_type(node->clause_then);
-      }
-      if (node->clause_else) {
-        add_type(node->clause_else);  // only for NODE_IF
-      }
-      if (node->next) {
-        add_type(node->next);
-      }
-      node->type = new_type_with(TYPE_VOID, NULL);
-      break;
-    case NODE_BLOCK:
-      for (size_t i = 0; i < node->statement_count; i++) {
-        add_type(node->statements[i]);
-      }
-      node->type = new_type_with(TYPE_VOID, NULL);
-      break;
-    case NODE_LOCAL_VARIABLE:
-    case NODE_GLOBAL_VARIABLE:
-      // typed in parsing
-      if (node->type == NULL) {
-        error("type is not set");
-      }
-      break;
-    case NODE_CALL:
-      for (int i = 0; i < node->args_count; i++) {
-        add_type(node->args[i]);
-      }
-      node->type = new_type_with(TYPE_VOID, NULL);
-      break;
-    case NODE_ADDR:
       add_type(node->rhs);
-      node->type = new_type_with(TYPE_POINTER, node->rhs->type);
-      break;
-    case NODE_DEREF:
-      add_type(node->rhs);
-      node->type = node->rhs->type->ptr_to;
-      break;
-    case NODE_LOGICAL_NOT:
-      add_type(node->rhs);
-      node->type = node->rhs->type;
-      break;
-    case NODE_VAR_DEC:
-      assert((node->lhs && node->rhs) || (!node->lhs && !node->rhs));
-      if (node->lhs) {
-        add_type(node->lhs);
-        node->type = node->lhs->type;
-        if (!node->rhs) {
-          error("node->lhs is not NULL but node->rhs is NULL");
-        }
-        add_type(node->rhs);
-      }
-      break;  // var declaration does not have type
-    default:
-      error("in add_type, unknown node kind: %d", node->kind);
+    }
+  }
+  // var declaration does not have type
+  else {
+    error("in add_type, unknown node kind: %d", node->kind);
   }
 }
 
