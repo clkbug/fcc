@@ -475,6 +475,12 @@ size_t calc_size_of_type(type_t *t) {
   error("calc_size_of_type: invalid data type: %d", t->ty);
   return 0;
 }
+
+size_t calc_size_of_struct(type_struct_t *s) {
+  return s->member_offsets[s->member_count - 1] +
+         calc_size_of_type(s->member_types[s->member_count - 1]);
+}
+
 struct type_alias_t {
   token_t *name;
   struct type_t *type;
@@ -593,6 +599,15 @@ type_and_name_t *parse_type_and_name() {
         }
         a->name = consume_ident();
         // expect(";");
+
+        if (consume("[")) {
+          a->t = new_type_with(TYPE_ARRAY, a->t);
+          a->t->n = expect_int();
+          expect("]");
+        }
+
+        // function pointer in struct is not supported
+
         return a;
       }
     }
@@ -954,6 +969,7 @@ node_t *parse_exp(int min_bind_pow) {
   node_t *node = new_node();
   token_t *tok;
   type_t *type;
+  type_struct_t *struc;
 
   // parse leading operator
   if (consume("-")) {
@@ -1010,6 +1026,10 @@ node_t *parse_exp(int min_bind_pow) {
       node->val = 4;
     } else if ((tok = consume_reserved(TK_TYPE_CHAR))) {
       node->val = 1;
+    } else if ((tok = consume_reserved(TK_STRUCT))) {
+      tok = consume_ident();
+      struc = find_type_struct(tok);
+      node->val = calc_size_of_struct(struc);
     } else {
       tok = consume_ident();
       type = find_type_alias(tok);
