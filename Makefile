@@ -2,21 +2,16 @@ TARGET := fcc
 TARGET2 := fcc2
 CFLAGS := -Wall -Wpedantic -g
 
-SRCS := \
-	main.c \
-
-OBJS := $(SRCS:.c=.o)
-
 .PHONY: all
 all: $(TARGET) $(TARGET2)
 
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+$(TARGET): main.c util.c
+	gcc $(CFLAGS) -o $@ $^
 
-$(TARGET2): $(SRCS) $(TARGET)
-	./preprocess.py $< >/tmp/$<
-	./$(TARGET) /tmp/$< >/tmp/a.s
-	riscv32-unknown-elf-gcc -o $@ /tmp/a.s
+$(TARGET2): main.c util.c $(TARGET)
+	./preprocess.py main.c >/tmp/main.c
+	./$(TARGET) /tmp/main.c >/tmp/a.s
+	riscv32-unknown-elf-gcc -o $@ util.c /tmp/a.s
 
 
 .PHONY: test clean debug
@@ -25,7 +20,7 @@ test: $(TARGET)
 	./test/test
 
 clean:
-	rm -f $(TARGET) $(OBJS)
+	rm -f $(TARGET) $(TARGET2)
 
 debug: $(TARGET)
 	./$(TARGET) "$(ARGS)" >/tmp/a.s
