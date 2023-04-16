@@ -1,5 +1,8 @@
 fcc
 fcc2
+fcc3
+main_preprocessed.c
+*.s
 *.o
 test/*.exe
 test/*.cmp

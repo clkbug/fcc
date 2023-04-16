@@ -57,6 +57,7 @@ TEST_CMP_RESULT := $(SRCS:.c=.cmp)
 TEST2_CMP_RESULT := $(SRCS:.c=.cmp2)
 
 FCC := ../fcc
+FCC2 := ../fcc2
 # GCC := podman run --rm -v ${PWD}:/work:z rv32-compiler /usr/local/gcc/riscv32im-unknown-elf/bin/riscv32-unknown-elf-gcc
 # QEMU := podman run --rm -v ${PWD}:/work:z rv32-compiler qemu-riscv32
 GCC := riscv32-unknown-elf-gcc
@@ -90,10 +91,10 @@ all: $(TEST_CMP_RESULT) $(REF_STDOUT) $(REF_EXE) $(TEST_STDOUT) $(TEST_ASM) $(TE
 	$(GCC) -o $@ $<
 %.test.s: %.c $(FCC)
 	$(FCC) $< >$@
-%.test2.exe: %.test.s
+%.test2.exe: %.test2.s
 	$(GCC) -o $@ $<
-%.test2.s: %.c $(FCC)
-	$(FCC) <$< >$@
+%.test2.s: %.c $(FCC2)
+	$(FCC2) <$< >$@
 
 .PHONY: clean
 clean:
