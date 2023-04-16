@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -8,6 +7,13 @@
 #include <string.h>
 
 #include "util.h"
+
+void assert(int cond) {
+  if (!cond) {
+    error("assertion failed");
+  }
+  return;
+}
 
 int last_loop_label_index = 0;
 int label_index = 0;

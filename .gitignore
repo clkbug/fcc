@@ -1,4 +1,5 @@
 fcc
+fcc2
 *.o
 test/*.exe
 test/*.cmp
