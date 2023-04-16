@@ -1760,14 +1760,28 @@ void gen_lval(node_t *node) {
   } else if (node->kind == NODE_DOT) {
     gen_lval(node->lhs);
     gen_pop("t0");
-    printf("%saddi t0, t0, %d\t\t# member: %.*s\n", indent, node->rhs->offset,
-           node->rhs->name->len, node->rhs->name->str);
+    if (node->rhs->offset < 2048) {
+      printf("%saddi t0, t0, %d\t\t# member: %.*s\n", indent, node->rhs->offset,
+             node->rhs->name->len, node->rhs->name->str);
+    } else {
+      printf("%sli t1, %d\t\t# member: %.*s\n", indent, node->rhs->offset,
+             node->rhs->name->len, node->rhs->name->str);
+      printf("%sadd t0, t0, t1\t\t# member: %.*s\n", indent,
+             node->rhs->name->len, node->rhs->name->str);
+    }
     gen_push("t0");
   } else if (node->kind == NODE_ARROW) {
     gen(node->lhs);
     gen_pop("t0");
-    printf("%saddi t0, t0, %d\t\t# member: %.*s\n", indent, node->rhs->offset,
-           node->rhs->name->len, node->rhs->name->str);
+    if (node->rhs->offset < 2048) {
+      printf("%saddi t0, t0, %d\t\t# member: %.*s\n", indent, node->rhs->offset,
+             node->rhs->name->len, node->rhs->name->str);
+    } else {
+      printf("%sli t1, %d\t\t# member: %.*s\n", indent, node->rhs->offset,
+             node->rhs->name->len, node->rhs->name->str);
+      printf("%sadd t0, t0, t1\t\t# member: %.*s\n", indent,
+             node->rhs->name->len, node->rhs->name->str);
+    }
     gen_push("t0");
   } else {
     error("左辺値が左辺値ではない！ kind=%d", node->kind);
