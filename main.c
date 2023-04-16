@@ -2283,12 +2283,8 @@ void print_constant_strings() {
 
 int main(int argc, char **argv) {
   declaration_t *dec;
-  if (argc != 2) {
-    error("argc = %d\n", argc);
-    return 1;
-  }
 
-  token = tokenize(read_file(argv[1]));
+  token = tokenize(read_stdin());
   assert(!at_eof());
 
   print_header();

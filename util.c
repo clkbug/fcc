@@ -17,6 +17,24 @@ void eprintf(char *fmt, ...) {
   vfprintf(stderr, fmt, ap);
 }
 
+char *read_stdin() {
+  int i = 0;
+  char *buf = calloc(1, 256 * 1024);
+
+  if (!buf) {
+    error("cannot allocate memory");
+  }
+
+  while (1) {
+    char c = getchar();
+    if (c == EOF) {
+      break;
+    }
+    buf[i++] = c;
+  }
+  return buf;
+}
+
 char *read_file(char *path) {
   FILE *fp = fopen(path, "r");
   if (!fp) error("cannot open %s: %s", path, strerror(errno));
@@ -38,10 +56,3 @@ char *read_file(char *path) {
   fclose(fp);
   return buf;
 }
-
-// void assert(int cond) {
-//   if (!cond) {
-//     error("assertion failed");
-//   }
-//   return;
-// }

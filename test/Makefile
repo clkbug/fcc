@@ -77,7 +77,7 @@ all: $(TEST_CMP_RESULT) $(REF_STDOUT) $(REF_EXE) $(TEST_STDOUT) $(TEST_ASM) $(TE
 %.test.exe: %.test.s
 	$(GCC) -o $@ $<
 %.test.s: %.c $(FCC)
-	$(FCC) $< >$@
+	cat $< | $(FCC) >$@
 
 .PHONY: clean
 clean:
