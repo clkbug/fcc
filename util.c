@@ -19,17 +19,24 @@ void eprintf(char *fmt, ...) {
 
 char *read_stdin() {
   int i = 0;
-  char *buf = calloc(1, 256 * 1024);
 
+  char *buf = calloc(1, 256 * 1024);
   if (!buf) {
-    error("cannot allocate memory");
+    printf("failed to allocate memory\n");
+    exit(1);
   }
 
-  while (1) {
+  while (i < 256 * 1024) {
     char c = getchar();
-    if (c == EOF) {
+    if (c < 32 || c > 126) {
+      buf[i] = '\0';
       break;
     }
+    if (c == EOF) {
+      buf[i] = '\0';
+      exit(0);
+    }
+    putchar(c);
     buf[i++] = c;
   }
   return buf;

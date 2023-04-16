@@ -10,7 +10,7 @@ $(TARGET): main.c util.c
 
 $(TARGET2): main.c util.c $(TARGET)
 	./preprocess.py main.c >/tmp/main.c
-	./$(TARGET) /tmp/main.c >/tmp/a.s
+	cat /tmp/main.c | ./$(TARGET) >/tmp/a.s
 	riscv32-unknown-elf-gcc -o $@ util.c /tmp/a.s
 
 
