@@ -1524,7 +1524,8 @@ declaration_t *parse_declaration() {
     d->func_statement_count = i + 1;
   }
 
-  if (d->func_statements[d->func_statement_count - 1]->kind != NODE_RETURN) {
+  if (d->func_statement_count == 0 ||
+      d->func_statements[d->func_statement_count - 1]->kind != NODE_RETURN) {
     d->func_statements[d->func_statement_count] = new_node();
     d->func_statements[d->func_statement_count]->kind = NODE_RETURN;
     ++d->func_statement_count;

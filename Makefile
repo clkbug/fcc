@@ -16,7 +16,7 @@ $(TARGET): $(OBJS)
 $(TARGET2): $(SRCS) $(TARGET)
 	./preprocess.py $< >/tmp/$<
 	./$(TARGET) /tmp/$< >/tmp/a.s
-	$(CC) $(CFLAGS) -I. -o $@ /tmp/a.s
+	riscv32-unknown-elf-gcc -o $@ /tmp/a.s
 
 
 .PHONY: test clean debug
