@@ -777,16 +777,16 @@ struct node_t {
   struct node_t *next;
   // struct node_t *clause_then;
 
-  // for 'block'
-  struct node_t *statements[MAX_STATEMENTS];
-  size_t statement_count;
+  // for 'const string'
+  constant_string_t *const_str;
 
   // for 'call'
   struct node_t *args[MAX_ARGS];
   size_t args_count;
 
-  // for 'const string'
-  constant_string_t *const_str;
+  // for 'block'
+  struct node_t *statements[MAX_STATEMENTS];
+  size_t statement_count;
 };
 typedef struct node_t node_t;
 
@@ -1298,6 +1298,9 @@ node_t *parse_stmt() {
       node->statements[i] = parse_stmt();
       ++node->statement_count;
     }
+    if (i == MAX_STATEMENTS) {
+      error("too many statements in a block");
+    }
   } else {
     node = parse_exp(0);
     node->ignore = 1;
@@ -1525,6 +1528,9 @@ declaration_t *parse_declaration() {
     d->func_statements[i] = parse_stmt();
     add_type(d->func_statements[i]);
     d->func_statement_count = i + 1;
+  }
+  if (i == MAX_STATEMENTS) {
+    error("too many statements in a block");
   }
 
   if (d->func_statement_count == 0 ||
@@ -1988,18 +1994,40 @@ void gen(node_t *node) {
     gen_lval(node->lhs);
     gen_pop("t0");
     if (node->type->ty != TYPE_ARRAY) {
-      printf("%slw t0, %d(t0)\n", indent, node->rhs->offset);
+      if (node->rhs->offset < 2048) {
+        printf("%slw t0, %d(t0)\n", indent, node->rhs->offset);
+      } else {
+        printf("%sli  t1, %d\n", indent, node->rhs->offset);
+        printf("%sadd t0, t0, t1\n", indent);
+        printf("%slw t0, 0(t0)\n", indent);
+      }
     } else {
-      printf("%saddi t0, t0, %d\n", indent, node->rhs->offset);
+      if (node->rhs->offset < 2048) {
+        printf("%saddi t0, t0, %d\n", indent, node->rhs->offset);
+      } else {
+        printf("%sli  t1, %d\n", indent, node->rhs->offset);
+        printf("%sadd t0, t0, t1\n", indent);
+      }
     }
     gen_push("t0");
   } else if (node->kind == NODE_ARROW) {
     gen(node->lhs);
     gen_pop("t0");
     if (node->type->ty != TYPE_ARRAY) {
-      printf("%slw t0, %d(t0)\n", indent, node->rhs->offset);
+      if (node->rhs->offset < 2048) {
+        printf("%slw t0, %d(t0)\n", indent, node->rhs->offset);
+      } else {
+        printf("%sli  t1, %d\n", indent, node->rhs->offset);
+        printf("%sadd t0, t0, t1\n", indent);
+        printf("%slw t0, 0(t0)\n", indent);
+      }
     } else {
-      printf("%saddi t0, t0, %d\n", indent, node->rhs->offset);
+      if (node->rhs->offset < 2048) {
+        printf("%saddi t0, t0, %d\n", indent, node->rhs->offset);
+      } else {
+        printf("%sli  t1, %d\n", indent, node->rhs->offset);
+        printf("%sadd t0, t0, t1\n", indent);
+      }
     }
     gen_push("t0");
   } else if (node->kind == NODE_ASSIGN) {
