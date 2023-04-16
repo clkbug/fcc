@@ -1454,6 +1454,9 @@ declaration_t *parse_declaration() {
     if (type_and_name->name == NULL) {
       // struct definition
       return NULL;
+    } else if (type_and_name->t->ty == TYPE_FUNCTION) {
+      // funtion prototype
+      return NULL;  // ignore
     } else {
       d->declaration_type = DECLARATION_GLOBAL_VARIABLE;
       d->type = type_and_name->t;
