@@ -17,33 +17,8 @@ void eprintf(char *fmt, ...) {
   vfprintf(stderr, fmt, ap);
 }
 
-char *read_stdin() {
-  int i = 0;
-
-  char *buf = calloc(1, 256 * 1024);
-  if (!buf) {
-    printf("failed to allocate memory\n");
-    exit(1);
-  }
-
-  while (i < 256 * 1024) {
-    char c = getchar();
-    if (c < 32 || c > 126) {
-      buf[i] = '\0';
-      break;
-    }
-    if (c == EOF) {
-      buf[i] = '\0';
-      exit(0);
-    }
-    putchar(c);
-    buf[i++] = c;
-  }
-  return buf;
-}
-
 char *read_file(char *path) {
-  FILE *fp = fopen(path, "r");
+  FILE *fp = path ? fopen(path, "r") : stdin;
   if (!fp) error("cannot open %s: %s", path, strerror(errno));
 
   // check file size

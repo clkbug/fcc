@@ -49,8 +49,12 @@ REF_STDOUT := $(REF_EXE:.exe=.stdout)
 TEST_EXE := $(SRCS:.c=.test.exe)
 TEST_ASM := $(SRCS:.c=.test.s)
 TEST_STDOUT := $(TEST_EXE:.exe=.stdout)
+TEST2_EXE := $(SRCS:.c=.test2.exe)
+TEST2_ASM := $(SRCS:.c=.test2.s)
+TEST2_STDOUT := $(TEST2_EXE:.exe=.stdout)
 
 TEST_CMP_RESULT := $(SRCS:.c=.cmp)
+TEST2_CMP_RESULT := $(SRCS:.c=.cmp2)
 
 FCC := ../fcc
 # GCC := podman run --rm -v ${PWD}:/work:z rv32-compiler /usr/local/gcc/riscv32im-unknown-elf/bin/riscv32-unknown-elf-gcc
@@ -58,17 +62,25 @@ FCC := ../fcc
 GCC := riscv32-unknown-elf-gcc
 QEMU := qemu-riscv32-static
 
-all: $(TEST_CMP_RESULT) $(REF_STDOUT) $(REF_EXE) $(TEST_STDOUT) $(TEST_ASM) $(TEST_EXE)
+all: $(TEST_CMP_RESULT) $(REF_STDOUT) $(REF_EXE) $(TEST_STDOUT) $(TEST_ASM) $(TEST_EXE) $(TEST2_CMP_RESULT) $(TEST2_STDOUT) $(TEST2_ASM) $(TEST2_EXE)
 	@echo all tests passed!
 
 # .PHONY: $(TEST_CMP_RESULT)
 %.cmp: %.ref.stdout %.test.stdout
 	diff $^     # 差分があればここで止まる
 	diff $^ >$@
+# %.cmp2: %.ref.stdout %.test2.stdout
+# 	diff $^     # 差分があればここで止まる
+# 	diff $^ >$@
+%.cmp2: %.test.s %.test2.s
+	diff $^     # 差分があればここで止まる
+	diff $^ >$@
 
 %.ref.stdout: %.ref.exe
 	$(QEMU) $< > $@
 %.test.stdout: %.test.exe
+	$(QEMU) $< > $@
+%.test2.stdout: %.test2.exe
 	$(QEMU) $< > $@
 
 %.ref.exe: %.c
@@ -78,7 +90,11 @@ all: $(TEST_CMP_RESULT) $(REF_STDOUT) $(REF_EXE) $(TEST_STDOUT) $(TEST_ASM) $(TE
 	$(GCC) -o $@ $<
 %.test.s: %.c $(FCC)
 	$(FCC) $< >$@
+%.test2.exe: %.test.s
+	$(GCC) -o $@ $<
+%.test2.s: %.c $(FCC)
+	$(FCC) <$< >$@
 
 .PHONY: clean
 clean:
-	rm -f $(REF_EXE) $(REF_STDOUT) $(TEST_EXE) $(TEST_ASM) $(TEST_STDOUT) $(TEST_CMP_RESULT)
+	rm -f $(REF_EXE) $(REF_STDOUT) $(TEST_EXE) $(TEST_ASM) $(TEST_STDOUT) $(TEST_CMP_RESULT) $(TEST2_CMP_RESULT) $(TEST2_STDOUT) $(TEST2_ASM) $(TEST2_EXE)

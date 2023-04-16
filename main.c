@@ -2287,10 +2287,12 @@ int main(int argc, char **argv) {
   if (argc >= 2) {
     token = tokenize(read_file(argv[1]));
   } else {
-    token = tokenize(read_stdin());
+    token = tokenize(read_file(NULL));
   }
 
-  assert(!at_eof());
+  if (at_eof()) {
+    error("no input");
+  }
 
   print_header();
   while (!at_eof()) {

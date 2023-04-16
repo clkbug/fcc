@@ -3,5 +3,6 @@ fcc2
 *.o
 test/*.exe
 test/*.cmp
+test/*.cmp2
 test/*.stdout
 test/*.s
