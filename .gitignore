@@ -1,6 +1,4 @@
-fcc
-fcc2
-fcc3
+fcc*
 main_preprocessed.c
 *.s
 *.o
